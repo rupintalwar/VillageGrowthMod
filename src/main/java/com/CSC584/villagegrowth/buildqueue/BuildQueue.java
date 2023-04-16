@@ -50,7 +50,7 @@ public class BuildQueue {
     }
 
     public int initialPriority(StructureBlockBlockEntity block) {
-        return block.getPos().getZ() * 2;
+        return block.getPos().getY();
     }
     public static StructureBlockBlockEntity getBlockEntityFromNBTTag(NbtCompound blockTag) {
         int blockId = blockTag.getInt("state");
