@@ -1,7 +1,8 @@
 package com.CSC584.villagegrowth.mixin;
 
 import com.CSC584.villagegrowth.task.FindBuildSiteTask;
-import com.CSC584.villagegrowth.task.MasonVillagerTask;
+import com.CSC584.villagegrowth.task.ConstructBuildingTask;
+import com.CSC584.villagegrowth.task.MasonWorkTask;
 import com.CSC584.villagegrowth.task.TillLandTask;
 import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
@@ -40,7 +41,8 @@ public class VillagerTaskListProviderMixin {
 
         } else if(profession == VillagerProfession.MASON) {
             randomTasks.addAll(ImmutableList.of(
-                    Pair.of(new MasonVillagerTask(), 7),
+                    Pair.of(new MasonWorkTask(), 5),
+                    Pair.of(new ConstructBuildingTask(), 7),
                     Pair.of(new FindBuildSiteTask(), 4)
             ));
 
