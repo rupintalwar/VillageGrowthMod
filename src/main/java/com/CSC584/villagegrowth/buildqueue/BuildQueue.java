@@ -1,4 +1,4 @@
-package villagegrowth.buildqueue;
+package com.CSC584.villagegrowth.buildqueue;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -26,7 +26,6 @@ public class BuildQueue {
     Structure.Context context;
     boolean finished;
     PriorityQueue<PriorityBlock> pending;
-    List<StructureBlockBlockEntity> completed;
     List<StructureBlockBlockEntity> allBlocks;
 
     public BuildQueue(String struct_name, Structure.Context context) {
@@ -34,7 +33,6 @@ public class BuildQueue {
         this.context = context;
         this.finished = false;
         this.pending = new PriorityQueue<>(10, new PriorityBlockComparator());
-        this.completed = new ArrayList<>();
         this.allBlocks = extractBlockList(struct_name);
         for (StructureBlockBlockEntity block : this.allBlocks) {
             this.pending.add(new PriorityBlock(block, initialPriority(block)));
