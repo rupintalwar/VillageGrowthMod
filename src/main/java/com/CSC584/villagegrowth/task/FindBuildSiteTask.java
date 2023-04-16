@@ -4,11 +4,9 @@ import com.CSC584.villagegrowth.VillageGrowthMod;
 import com.CSC584.villagegrowth.buildqueue.BuildQueue;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
-import net.minecraft.entity.ai.brain.MemoryModuleState;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
 import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
@@ -17,13 +15,12 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Random;
 
+
 public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
     private static final int MAX_RUN_TIME = 800;
-    private static final int RADIUS = 100;
-    @Nullable
-    private BlockPos currentTarget;
-    private long nextResponseTime;
-    private int ticksRan;
+    private static final int SEARCH_RADIUS = 100;
+    private static final int EMPTY_SPACE_SIZE = 15;
+
 
     private String[] structures = {
             "armorer_1.nbt", "butcher_shop_1.nbt", "cartographer_house_1.nbt", "farm_1.nbt", "farm_2.nbt",
@@ -34,12 +31,12 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
     };
 
     public FindBuildSiteTask() {
-        super(
-                ImmutableMap.of(ModVillagers.BUILD_SITE, MemoryModuleState.VALUE_ABSENT),
-                MAX_RUN_TIME);
+        super(ImmutableMap.of());
     }
 
     protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+        VillageGrowthMod.LOGGER.info("Checking Find");
+        VillageGrowthMod.LOGGER.info("Has build Site: " + entity.getBrain().hasMemoryModule(ModVillagers.BUILD_SITE));
         return !entity.getBrain().hasMemoryModule(ModVillagers.BUILD_SITE);
     }
 
@@ -51,14 +48,11 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
             entity.getBrain().remember(ModVillagers.BUILD_SITE, GlobalPos.create(world.getRegistryKey(), emptySpot));
             String villageType = entity.getVillagerData().getType().toString();
             String selectedStruct = this.structures[new Random().nextInt(this.structures.length)];
-            entity.getBrain().remember(ModVillagers.BUILD_QUEUE, new BuildQueue(villageType + selectedStruct));
+            entity.getBrain().remember(ModVillagers.BUILD_QUEUE, new BuildQueue("minecraft:village/" + villageType + "/houses/" + villageType + "_" + selectedStruct));
         }
     }
 
     public static BlockPos findEmptySpace(ServerWorld world, Vec3d center) {
-        final int SEARCH_RADIUS = 100;
-        final int EMPTY_SPACE_SIZE = 15;
-
         for (int x = (int) (center.getX() - SEARCH_RADIUS); x <= center.getX() + SEARCH_RADIUS; x++) {
             for (int y = (int) (center.getY() - SEARCH_RADIUS); y <= center.getY() + SEARCH_RADIUS; y++) {
                 for (int z = (int) (center.getZ() - EMPTY_SPACE_SIZE); z <= center.getZ() + EMPTY_SPACE_SIZE; z++) {
@@ -93,11 +87,4 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
         return null;
     }
 
-    @Override
-    protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-        villagerEntity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
-        villagerEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
-        this.ticksRan = 0;
-        this.nextResponseTime = l + 40L;
-    }
 }

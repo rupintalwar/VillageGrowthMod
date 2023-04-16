@@ -41,14 +41,14 @@ public class VillagerTaskListProviderMixin {
 
         } else if(profession == VillagerProfession.MASON) {
             randomTasks.addAll(ImmutableList.of(
-                    Pair.of(new MasonWorkTask(), 5),
                     Pair.of(new ConstructBuildingTask(), 7),
+                    Pair.of(new MasonWorkTask(), 5),
                     Pair.of(new FindBuildSiteTask(), 4)
             ));
 
-            tasks.addAll(ImmutableList.of(
-                    Pair.of(3, VillagerWalkTowardsTask.create(BUILD_SITE, speed, 9, 100, 1200))
-            ));
+            //tasks.addAll(ImmutableList.of(
+            //        Pair.of(3, VillagerWalkTowardsTask.create(BUILD_SITE, speed, 9, 100, 1200))
+            //));
 
         } else {
             overrideTasks = false;

@@ -2,6 +2,7 @@ package com.CSC584.villagegrowth.task;
 
 import com.CSC584.villagegrowth.VillageGrowthMod;
 import com.CSC584.villagegrowth.buildqueue.BuildQueue;
+import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.block.AirBlock;
 import net.minecraft.block.Block;
@@ -22,9 +23,6 @@ import net.minecraft.world.event.GameEvent;
 
 import java.util.Optional;
 
-import static com.CSC584.villagegrowth.villager.ModVillagers.BUILD_QUEUE;
-import static com.CSC584.villagegrowth.villager.ModVillagers.BUILD_SITE;
-
 public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
     private static final int BUILD_RANGE = 20;
@@ -38,11 +36,15 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         super(ImmutableMap.of(
                 MemoryModuleType.LOOK_TARGET, MemoryModuleState.VALUE_ABSENT,
                 MemoryModuleType.WALK_TARGET, MemoryModuleState.VALUE_ABSENT,
-                MemoryModuleType.SECONDARY_JOB_SITE, MemoryModuleState.VALUE_PRESENT));
+                ModVillagers.BUILD_SITE, MemoryModuleState.VALUE_PRESENT,
+                ModVillagers.BUILD_QUEUE, MemoryModuleState.VALUE_PRESENT
+                ));
     }
 
     @Override
     protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
+        VillageGrowthMod.LOGGER.info("Checking Construct");
+
         if (!serverWorld.getGameRules().getBoolean(GameRules.DO_MOB_GRIEFING)) {
             return false;
         }
@@ -51,12 +53,13 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         }
 
 
-        Optional<GlobalPos> optionalBuildSite = villagerEntity.getBrain().getOptionalMemory(BUILD_SITE);
-        Optional<BuildQueue> optionalBuildQueue = villagerEntity.getBrain().getOptionalMemory(BUILD_QUEUE);
+        Optional<GlobalPos> optionalBuildSite = villagerEntity.getBrain().getOptionalMemory(ModVillagers.BUILD_SITE);
+        Optional<BuildQueue> optionalBuildQueue = villagerEntity.getBrain().getOptionalMemory(ModVillagers.BUILD_QUEUE);
 
         if(optionalBuildSite.isPresent() && optionalBuildQueue.isPresent()) {
             this.queue = optionalBuildQueue.get();
-            return optionalBuildSite.get().getPos().isWithinDistance(villagerEntity.getPos(), BUILD_RANGE);
+            //return optionalBuildSite.get().getPos().isWithinDistance(villagerEntity.getPos(), BUILD_RANGE);
+            return true;
         }
         return false;
     }
@@ -71,7 +74,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         if(this.currentTarget != null) {
 
             BlockPos pos = this.currentTarget.getPos();
-            VillageGrowthMod.LOGGER.info("Build Site: " + villagerEntity.getBrain().getOptionalMemory(BUILD_SITE).get());
+            VillageGrowthMod.LOGGER.info("Build Site: " + villagerEntity.getBrain().getOptionalMemory(ModVillagers.BUILD_SITE).get());
             VillageGrowthMod.LOGGER.info("Target Pos: " + pos.toString());
 
             if (!pos.isWithinDistance(villagerEntity.getPos(), 1.0)) {
@@ -90,6 +93,9 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                         BlockPos pos2 = this.currentTarget.getPos();
                         villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(new BlockPosLookTarget(pos2), 0.5f, 1));
                         villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(pos2));
+                    } else {
+                        villagerEntity.getBrain().forget(ModVillagers.BUILD_SITE);
+                        villagerEntity.getBrain().forget(ModVillagers.BUILD_QUEUE);
                     }
                 }
             }
