@@ -1,6 +1,7 @@
 package com.CSC584.villagegrowth.villager;
 
 import com.CSC584.villagegrowth.VillageGrowthMod;
+import com.CSC584.villagegrowth.buildqueue.BuildQueue;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Codec;
 import net.fabricmc.fabric.api.object.builder.v1.world.poi.PointOfInterestHelper;
@@ -23,6 +24,8 @@ public class ModVillagers {
 
     public static final PointOfInterestType BUILDER = registerPOI("builder", Blocks.EMERALD_BLOCK);
 
+    public static final MemoryModuleType<BuildQueue> BUILD_QUEUE =
+            Registry.register(Registries.MEMORY_MODULE_TYPE, "build_queue", new MemoryModuleType<>(Optional.empty()));
     public static Activity registerActivity(String name) {
         return Registry.register(Registries.ACTIVITY, name, new Activity(name));
     }

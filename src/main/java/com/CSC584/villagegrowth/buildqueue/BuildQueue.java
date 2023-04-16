@@ -23,14 +23,12 @@ import java.util.PriorityQueue;
 
 public class BuildQueue {
     String struct_name;
-    Structure.Context context;
     boolean finished;
     PriorityQueue<PriorityBlock> pending;
     List<StructureBlockBlockEntity> allBlocks;
 
-    public BuildQueue(String struct_name, Structure.Context context) {
+    public BuildQueue(String struct_name) {
         this.struct_name = struct_name;
-        this.context = context;
         this.finished = false;
         this.pending = new PriorityQueue<>(10, new PriorityBlockComparator());
         this.allBlocks = extractBlockList(struct_name);
