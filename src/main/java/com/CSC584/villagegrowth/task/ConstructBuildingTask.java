@@ -39,6 +39,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                 ModVillagers.BUILD_SITE, MemoryModuleState.VALUE_PRESENT,
                 ModVillagers.BUILD_QUEUE, MemoryModuleState.VALUE_PRESENT
                 ));
+
     }
 
     @Override
