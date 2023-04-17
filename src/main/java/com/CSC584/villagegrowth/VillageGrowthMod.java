@@ -12,7 +12,6 @@ public class VillageGrowthMod implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		LOGGER.info("Initializing Mod: " + MOD_ID);
-
 		ModVillagers.registerVillagers();
 	}
 }

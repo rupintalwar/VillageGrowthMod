@@ -48,7 +48,7 @@ public class StructureStore {
         List<StructureTemplate.PalettedBlockInfoList> blockInfoLists = ((StructureTemplateInterfaceMixin) template).getBlockInfoLists();
 
         for (StructureTemplate.PalettedBlockInfoList list: blockInfoLists) {
-            output.addAll(list.getAll());
+            list.getAll().stream().filter(block -> !block.state.isAir()).forEach(output::add);
         }
 
         return output;

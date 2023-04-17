@@ -19,19 +19,18 @@ public class MasonWorkTask extends VillagerWorkTask {
     @Override
     protected void performAdditionalWork(ServerWorld world, VillagerEntity entity) {
         Optional<GlobalPos> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE);
-        if (!optional.isPresent()) {
+        if (optional.isEmpty()) {
             return;
         }
         GlobalPos globalPos = optional.get();
         BlockState blockState = world.getBlockState(globalPos.getPos());
         if (blockState.isOf(Blocks.STONECUTTER)) {
-            this.placeBlockOnTop(world, entity, globalPos, blockState);
+            this.placeBlockOnTop(world, entity, globalPos);
         }
     }
 
-    private void placeBlockOnTop(ServerWorld world, VillagerEntity entity, GlobalPos globalPos, BlockState blockState) {
+    private void placeBlockOnTop(ServerWorld world, VillagerEntity entity, GlobalPos globalPos) {
         //Testing function to verify that villagers do work
-        Block block = blockState.getBlock();
         Block block2 = world.getBlockState(globalPos.getPos().up()).getBlock();
 
         VillageGrowthMod.LOGGER.info("Checking to place block: " + globalPos.getPos().up().toString());

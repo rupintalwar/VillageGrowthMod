@@ -25,6 +25,7 @@ import java.util.Optional;
 public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
     private static final int BUILD_RANGE = 5;
+    private static final int MAX_RUN_TICKS = 10000;
 
     private StructureBlockInfo currentTarget;
     private long nextResponseTime;
@@ -38,7 +39,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
     @Override
     protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-        VillageGrowthMod.LOGGER.info("Checking Construct");
+        //VillageGrowthMod.LOGGER.info("Checking Construct");
 
         if (!serverWorld.getGameRules().getBoolean(GameRules.DO_MOB_GRIEFING)) {
             return false;
@@ -60,6 +61,12 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         if(optional.isPresent()) {
             StructureStore structureStore = optional.get();
             this.currentTarget = structureStore.queue.getBlock();
+
+            BlockPos pos2 = this.currentTarget.pos;
+            villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
+                    new WalkTarget(new BlockPosLookTarget(pos2), 0.5f, BUILD_RANGE));
+            villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,
+                    new BlockPosLookTarget(pos2));
         }
     }
 
@@ -74,23 +81,23 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         if(this.currentTarget != null && optional.isPresent()) {
             StructureStore structureStore = optional.get();
             BlockPos pos = structureStore.placementData.getPosition().add(this.currentTarget.pos);
-            VillageGrowthMod.LOGGER.info("Build Site: " + structureStore.placementData);
-            VillageGrowthMod.LOGGER.info("Target Pos: " + pos.toString());
+            //VillageGrowthMod.LOGGER.info("Build Site: " + structureStore.placementData.toString());
 
-            if (!pos.isWithinDistance(villagerEntity.getPos(), 1.0)) {
-                return;
-            }
-            if (l > this.nextResponseTime) {
+
+            if (l > this.nextResponseTime && pos.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
                 BlockState blockState = serverWorld.getBlockState(pos);
                 Block block = blockState.getBlock();
-                if (block instanceof AirBlock) {
-                    serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos, GameEvent.Emitter.of(villagerEntity, blockState));
+                if (block instanceof AirBlock || blockState.isReplaceable()) {
+                    serverWorld.setBlockState(pos, this.currentTarget.state);
+                    serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos, GameEvent.Emitter.of(villagerEntity, this.currentTarget.state));
+                    VillageGrowthMod.LOGGER.info("Target Pos: " + pos.toString());
+                    VillageGrowthMod.LOGGER.info("Placed " + this.currentTarget.state.getBlock().getName());
                 } else {
                     structureStore.queue.requeueBlock(this.currentTarget, pos.getY()*2);
                     this.currentTarget = structureStore.queue.getBlock();
                     if (this.currentTarget != null) {
-                        this.nextResponseTime = l + 20L;
-                        BlockPos pos2 = this.currentTarget.pos;
+                        this.nextResponseTime = l + 2L;
+                        BlockPos pos2 = structureStore.placementData.getPosition().add(this.currentTarget.pos);
                         villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
                                 new WalkTarget(new BlockPosLookTarget(pos2), 0.5f, BUILD_RANGE));
                         villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,

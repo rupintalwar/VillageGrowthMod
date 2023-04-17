@@ -86,17 +86,38 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
             int y = structureCorner.getY();
             int maxY = Math.min(world.getTopY() - structureStore.template.getSize().getY(), y + (int) projectDist);
             while(y < maxY && !this.foundSpot) {
-                structureStore.placementData.setPosition(
-                        new BlockPos(structureCorner.getX(), y, structureCorner.getZ()));
-
-                BlockBox structureBox = structureStore.template.calculateBoundingBox(
-                        structureStore.placementData, structureStore.placementData.getPosition());
-
-                this.foundSpot = world.isSpaceEmpty(Box.from(structureBox));
+                checkSpot(world, structureStore, structureCorner, y);
                 y++;
             }
 
+            if(y == structureCorner.getY() + 1) {
+                //We found our first probe is valid. This may be floating in the air though.
+                //Go down and find the lowest valid point.
+                int minY = Math.max(world.getBottomY(), y - (int) projectDist);
+                while(y > minY && this.foundSpot) {
+                    checkSpot(world, structureStore, structureCorner, y);
+                    y--;
+                }
+                structureStore.placementData.setPosition(
+                        new BlockPos(
+                                structureCorner.getX(),
+                                y + (this.foundSpot ? 0 : 1),
+                                structureCorner.getZ()
+                        ));
+
+                this.foundSpot = true;
+            }
         }
+    }
+
+    private void checkSpot(ServerWorld world, StructureStore structureStore, BlockPos structureCorner, int y) {
+        structureStore.placementData.setPosition(
+                new BlockPos(structureCorner.getX(), y, structureCorner.getZ()));
+
+        BlockBox structureBox = structureStore.template.calculateBoundingBox(
+                structureStore.placementData, structureStore.placementData.getPosition());
+
+        this.foundSpot = world.isSpaceEmpty(Box.from(structureBox));
     }
 
     private void updateHouseStructures(ServerWorld world) {
