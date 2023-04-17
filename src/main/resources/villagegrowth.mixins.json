@@ -4,6 +4,7 @@
   "package": "com.CSC584.villagegrowth.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "StructureTemplateInterfaceMixin",
     "VillagerTaskListProviderInterfaceMixin",
     "VillagerTaskListProviderMixin"
   ],

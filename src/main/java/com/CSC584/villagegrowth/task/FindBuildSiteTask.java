@@ -4,16 +4,17 @@ import com.CSC584.villagegrowth.VillageGrowthMod;
 import com.CSC584.villagegrowth.buildqueue.BuildQueue;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
-import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.structure.StructureTemplateManager;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.Vec3d;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
@@ -21,14 +22,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
     private static final int SEARCH_RADIUS = 100;
     private static final int EMPTY_SPACE_SIZE = 15;
 
-
-    private String[] structures = {
-            "armorer_1.nbt", "butcher_shop_1.nbt", "cartographer_house_1.nbt", "farm_1.nbt", "farm_2.nbt",
-            "fletcher_house_1.nbt", "large_farm_1.nbt", "library_1.nbt", "mason_1.nbt", "medium_house_1.nbt",
-            "medium_house_2.nbt", "shepherd_house_1.nbt", "small_house_1.nbt", "small_house_2.nbt", "small_house_3.nbt",
-            "small_house_4.nbt", "small_house_5.nbt", "small_house_6.nbt", "small_house_7.nbt", "small_house_8.nbt",
-            "tannery_1.nbt", "temple_1.nbt", "temple_2.nbt", "tool_smith_1.nbt", "weaponsmith_1.nbt"
-    };
+    private HashMap<String, ArrayList<Identifier>> house_structure_map = new HashMap<>();
 
     public FindBuildSiteTask() {
         super(ImmutableMap.of());
@@ -37,19 +31,37 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
     protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
         VillageGrowthMod.LOGGER.info("Checking Find");
         VillageGrowthMod.LOGGER.info("Has build Site: " + entity.getBrain().hasMemoryModule(ModVillagers.BUILD_SITE));
-        return !entity.getBrain().hasMemoryModule(ModVillagers.BUILD_SITE);
+        updateHouseStructures(world);
+        return !entity.getBrain().hasMemoryModule(ModVillagers.BUILD_SITE) && !house_structure_map.isEmpty();
     }
 
     protected void run(ServerWorld world, VillagerEntity entity, long time) {
         VillageGrowthMod.LOGGER.info("Find Build Site:run!");
         Vec3d curPos = entity.getPos();
+        String villageType = entity.getVillagerData().getType().toString();
+        ArrayList<Identifier> house_structure_list = house_structure_map.get(villageType);
+
         BlockPos emptySpot = findEmptySpace(world, curPos);
-        if (null != emptySpot) {
+        if (emptySpot != null && !house_structure_list.isEmpty()) {
             entity.getBrain().remember(ModVillagers.BUILD_SITE, GlobalPos.create(world.getRegistryKey(), emptySpot));
-            String villageType = entity.getVillagerData().getType().toString();
-            String selectedStruct = this.structures[new Random().nextInt(this.structures.length)];
-            entity.getBrain().remember(ModVillagers.BUILD_QUEUE, new BuildQueue("minecraft:village/" + villageType + "/houses/" + villageType + "_" + selectedStruct));
+            Identifier selectedStruct = house_structure_list.get(new Random().nextInt(house_structure_list.size()));
+            entity.getBrain().remember(ModVillagers.BUILD_QUEUE, new BuildQueue(selectedStruct, world));
         }
+    }
+
+    private void updateHouseStructures(ServerWorld world) {
+        StructureTemplateManager structureTemplateManager = world.getStructureTemplateManager();
+        structureTemplateManager.streamTemplates()
+                .filter(k -> k.getPath().contains("houses"))
+                .forEach(k -> addToMap(k));
+    }
+
+    private void addToMap(Identifier id) {
+        //Get village type. Ex: desert, plains, savanna
+        String type = id.getPath().split("/")[1];
+        ArrayList<Identifier> list = house_structure_map.getOrDefault(type, new ArrayList<>());
+        list.add(id);
+        house_structure_map.put(type, list);
     }
 
     public static BlockPos findEmptySpace(ServerWorld world, Vec3d center) {

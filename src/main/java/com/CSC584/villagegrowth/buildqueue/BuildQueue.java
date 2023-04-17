@@ -1,55 +1,49 @@
 package com.CSC584.villagegrowth.buildqueue;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.HorizontalFacingBlock;
-import net.minecraft.block.entity.StructureBlockBlockEntity;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.gen.structure.Structure;
-import net.minecraft.block.StructureBlock;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.state.property.Properties;
+import com.CSC584.villagegrowth.mixin.StructureTemplateInterfaceMixin;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.structure.StructureTemplateManager;
+import net.minecraft.util.Identifier;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.PriorityQueue;
+import java.util.*;
 
 public class BuildQueue {
-    String struct_name;
+    ServerWorld world;
+    Identifier struct_id;
     boolean finished;
     PriorityQueue<PriorityBlock> pending;
-    List<StructureBlockBlockEntity> allBlocks;
+    List<StructureBlockInfo> allBlocks;
 
-    public BuildQueue(String struct_name) {
-        this.struct_name = struct_name;
+    public BuildQueue(Identifier struct_id, ServerWorld world) {
+        this.world = world;
+        this.struct_id = struct_id;
         this.finished = false;
         this.pending = new PriorityQueue<>(10, new PriorityBlockComparator());
-        this.allBlocks = extractBlockList(struct_name);
-        for (StructureBlockBlockEntity block : this.allBlocks) {
+        this.allBlocks = extractBlockList(struct_id);
+        for (StructureBlockInfo block : this.allBlocks) {
             this.pending.add(new PriorityBlock(block, initialPriority(block)));
         }
     }
-    public StructureBlockBlockEntity getBlock() {
-        if (this.finished) {
+    public StructureBlockInfo getBlock() {
+        if (this.pending.isEmpty()) {
+            this.finished = true;
             return null;
         }
         return this.pending.poll().block;
     }
 
-    public void requeueBlock(StructureBlockBlockEntity block, int newPriority) {
+    public void requeueBlock(StructureBlockInfo block, int newPriority) {
         this.pending.add(new PriorityBlock(block, newPriority));
     }
 
-    public int initialPriority(StructureBlockBlockEntity block) {
-        return block.getPos().getY();
+    public int initialPriority(StructureBlockInfo block) {
+
+        return block.pos.getY();
     }
+
+    /*
     public static StructureBlockBlockEntity getBlockEntityFromNBTTag(NbtCompound blockTag) {
         int blockId = blockTag.getInt("state");
         BlockState blockState = Block.getStateFromRawId(blockId);
@@ -61,42 +55,35 @@ public class BuildQueue {
 
         return new StructureBlockBlockEntity(pos, blockState);
     }
-    private List<StructureBlockBlockEntity> extractBlockList(String struct_name) {
-        List<StructureBlockBlockEntity> output = new ArrayList<>();
-        try {
-            File file = new File(struct_name);
-            FileInputStream stream = new FileInputStream(file);
 
-            NbtCompound structureTag = NbtIo.readCompressed(stream);
-            NbtList blocksTag = structureTag.getList("blocks", 10);
+     */
+    private List<StructureBlockInfo> extractBlockList(Identifier struct_id) {
+        List<StructureBlockInfo> output = new ArrayList<>();
+        StructureTemplateManager structureTemplateManager = this.world.getStructureTemplateManager();
 
-            for (int i = 0; i < blocksTag.size(); i++) {
-                NbtCompound blockTag = blocksTag.getCompound(i);
-                output.add(getBlockEntityFromNBTTag(blockTag));
+        Optional<StructureTemplate> template = structureTemplateManager.getTemplate(struct_id);
+
+        if(template.isPresent()){
+            List<StructureTemplate.PalettedBlockInfoList> blockInfoLists = ((StructureTemplateInterfaceMixin) template.get()).getBlockInfoLists();
+
+            for (StructureTemplate.PalettedBlockInfoList list: blockInfoLists) {
+                output.addAll(list.getAll());
             }
-
-            stream.close();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
         return output;
     }
 
-    public class PriorityBlock {
-        StructureBlockBlockEntity block;
+    public static class PriorityBlock {
+        StructureBlockInfo block;
         int priority;
 
-        public PriorityBlock(StructureBlockBlockEntity b, int p) {
+        public PriorityBlock(StructureBlockInfo b, int p) {
             this.block = b;
-            this.priority = p;
-        }
-
-        public void setPriority(int p) {
             this.priority = p;
         }
     }
 
-    public class PriorityBlockComparator implements Comparator<PriorityBlock> {
+    public static class PriorityBlockComparator implements Comparator<PriorityBlock> {
 
         @Override
         public int compare(PriorityBlock o1, PriorityBlock o2) {

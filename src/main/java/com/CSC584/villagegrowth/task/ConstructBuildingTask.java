@@ -7,7 +7,6 @@ import com.google.common.collect.ImmutableMap;
 import net.minecraft.block.AirBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.StructureBlockBlockEntity;
 import net.minecraft.entity.ai.brain.BlockPosLookTarget;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
@@ -15,6 +14,7 @@ import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.village.VillagerProfession;
@@ -27,15 +27,13 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
     private static final int BUILD_RANGE = 20;
 
-    private StructureBlockBlockEntity currentTarget;
+    private StructureBlockInfo currentTarget;
     private BuildQueue queue;
     private long nextResponseTime;
     private int ticksRan;
 
     public ConstructBuildingTask() {
         super(ImmutableMap.of(
-                MemoryModuleType.LOOK_TARGET, MemoryModuleState.VALUE_ABSENT,
-                MemoryModuleType.WALK_TARGET, MemoryModuleState.VALUE_ABSENT,
                 ModVillagers.BUILD_SITE, MemoryModuleState.VALUE_PRESENT,
                 ModVillagers.BUILD_QUEUE, MemoryModuleState.VALUE_PRESENT
                 ));
@@ -74,7 +72,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
     protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
         if(this.currentTarget != null) {
 
-            BlockPos pos = this.currentTarget.getPos();
+            BlockPos pos = this.currentTarget.pos;
             VillageGrowthMod.LOGGER.info("Build Site: " + villagerEntity.getBrain().getOptionalMemory(ModVillagers.BUILD_SITE).get());
             VillageGrowthMod.LOGGER.info("Target Pos: " + pos.toString());
 
@@ -91,7 +89,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                     this.currentTarget = this.queue.getBlock();
                     if (this.currentTarget != null) {
                         this.nextResponseTime = l + 20L;
-                        BlockPos pos2 = this.currentTarget.getPos();
+                        BlockPos pos2 = this.currentTarget.pos;
                         villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(new BlockPosLookTarget(pos2), 0.5f, 1));
                         villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(pos2));
                     } else {
