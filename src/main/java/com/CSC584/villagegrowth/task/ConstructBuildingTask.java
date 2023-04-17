@@ -1,7 +1,7 @@
 package com.CSC584.villagegrowth.task;
 
 import com.CSC584.villagegrowth.VillageGrowthMod;
-import com.CSC584.villagegrowth.buildqueue.BuildQueue;
+import com.CSC584.villagegrowth.helpers.StructureStore;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.block.AirBlock;
@@ -16,7 +16,6 @@ import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.GlobalPos;
 import net.minecraft.village.VillagerProfession;
 import net.minecraft.world.GameRules;
 import net.minecraft.world.event.GameEvent;
@@ -25,18 +24,15 @@ import java.util.Optional;
 
 public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
-    private static final int BUILD_RANGE = 20;
+    private static final int BUILD_RANGE = 5;
 
     private StructureBlockInfo currentTarget;
-    private BuildQueue queue;
     private long nextResponseTime;
-    private int ticksRan;
 
     public ConstructBuildingTask() {
         super(ImmutableMap.of(
-                ModVillagers.BUILD_SITE, MemoryModuleState.VALUE_PRESENT,
-                ModVillagers.BUILD_QUEUE, MemoryModuleState.VALUE_PRESENT
-                ));
+                ModVillagers.STRUCTURE_BUILD_INFO, MemoryModuleState.VALUE_PRESENT
+        ));
 
     }
 
@@ -52,28 +48,33 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         }
 
 
-        Optional<GlobalPos> optionalBuildSite = villagerEntity.getBrain().getOptionalMemory(ModVillagers.BUILD_SITE);
-        Optional<BuildQueue> optionalBuildQueue = villagerEntity.getBrain().getOptionalMemory(ModVillagers.BUILD_QUEUE);
+        Optional<StructureStore> optionalStructureStore = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
 
-        if(optionalBuildSite.isPresent() && optionalBuildQueue.isPresent()) {
-            this.queue = optionalBuildQueue.get();
-            //return optionalBuildSite.get().getPos().isWithinDistance(villagerEntity.getPos(), BUILD_RANGE);
-            return true;
-        }
-        return false;
+        //return optionalBuildSite.get().getPos().isWithinDistance(villagerEntity.getPos(), BUILD_RANGE);
+        return optionalStructureStore.isPresent();
     }
 
     @Override
     protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-        this.currentTarget = this.queue.getBlock();
+        Optional<StructureStore> optional = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
+        if(optional.isPresent()) {
+            StructureStore structureStore = optional.get();
+            this.currentTarget = structureStore.queue.getBlock();
+        }
+    }
+
+    @Override
+    protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+        return this.shouldRun(world, entity);
     }
 
     @Override
     protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-        if(this.currentTarget != null) {
-
-            BlockPos pos = this.currentTarget.pos;
-            VillageGrowthMod.LOGGER.info("Build Site: " + villagerEntity.getBrain().getOptionalMemory(ModVillagers.BUILD_SITE).get());
+        Optional<StructureStore> optional = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
+        if(this.currentTarget != null && optional.isPresent()) {
+            StructureStore structureStore = optional.get();
+            BlockPos pos = structureStore.placementData.getPosition().add(this.currentTarget.pos);
+            VillageGrowthMod.LOGGER.info("Build Site: " + structureStore.placementData);
             VillageGrowthMod.LOGGER.info("Target Pos: " + pos.toString());
 
             if (!pos.isWithinDistance(villagerEntity.getPos(), 1.0)) {
@@ -85,21 +86,21 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                 if (block instanceof AirBlock) {
                     serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos, GameEvent.Emitter.of(villagerEntity, blockState));
                 } else {
-                    this.queue.requeueBlock(this.currentTarget, pos.getY()*2);
-                    this.currentTarget = this.queue.getBlock();
+                    structureStore.queue.requeueBlock(this.currentTarget, pos.getY()*2);
+                    this.currentTarget = structureStore.queue.getBlock();
                     if (this.currentTarget != null) {
                         this.nextResponseTime = l + 20L;
                         BlockPos pos2 = this.currentTarget.pos;
-                        villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(new BlockPosLookTarget(pos2), 0.5f, 1));
-                        villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(pos2));
+                        villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
+                                new WalkTarget(new BlockPosLookTarget(pos2), 0.5f, BUILD_RANGE));
+                        villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,
+                                new BlockPosLookTarget(pos2));
                     } else {
-                        villagerEntity.getBrain().forget(ModVillagers.BUILD_SITE);
-                        villagerEntity.getBrain().forget(ModVillagers.BUILD_QUEUE);
+                        villagerEntity.getBrain().forget(ModVillagers.STRUCTURE_BUILD_INFO);
                     }
                 }
             }
         }
-        this.ticksRan++;
     }
 
     @Override

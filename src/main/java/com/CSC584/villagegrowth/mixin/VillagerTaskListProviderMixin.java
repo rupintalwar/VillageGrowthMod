@@ -1,7 +1,7 @@
 package com.CSC584.villagegrowth.mixin;
 
-import com.CSC584.villagegrowth.task.FindBuildSiteTask;
 import com.CSC584.villagegrowth.task.ConstructBuildingTask;
+import com.CSC584.villagegrowth.task.FindBuildSiteTask;
 import com.CSC584.villagegrowth.task.MasonWorkTask;
 import com.CSC584.villagegrowth.task.TillLandTask;
 import com.google.common.collect.ImmutableList;
@@ -18,8 +18,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.CSC584.villagegrowth.villager.ModVillagers.BUILD_SITE;
 
 @Mixin(VillagerTaskListProvider.class)
 public class VillagerTaskListProviderMixin {
