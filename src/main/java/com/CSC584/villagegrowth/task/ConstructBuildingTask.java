@@ -22,7 +22,7 @@ import java.util.Optional;
 
 public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
-    private static final int BUILD_RANGE = 5;
+    private static final int BUILD_RANGE = 3;
     private static final int MAX_RUN_TICKS = 10000;
     private long nextResponseTime;
 
@@ -80,7 +80,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
             StructureStore structureStore = optional.get();
 
             //Position of target block
-            BlockPos pos = structureStore.placementData.getPosition().add(
+            BlockPos pos = structureStore.offset.add(
                     structureStore.queue.getBlock().getBlock().pos);
             VillageGrowthMod.LOGGER.info("Target Pos: " + pos);
 
@@ -112,7 +112,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         }
     }
     private void setWalkTarget(VillagerEntity villagerEntity, StructureStore structureStore) {
-        BlockPos pos = structureStore.placementData.getPosition().add(structureStore.queue.getBlock().getBlock().pos);
+        BlockPos pos = structureStore.offset.add(structureStore.queue.getBlock().getBlock().pos);
         villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
                 new WalkTarget(new BlockPosLookTarget(pos), 0.5f, BUILD_RANGE));
         villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,

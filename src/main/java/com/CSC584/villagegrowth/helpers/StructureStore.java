@@ -30,6 +30,7 @@ public class StructureStore {
     public BuildQueue queue;
 
     public StructurePlacementData placementData;
+    public BlockPos offset;
 
     public StructureStore(ServerWorld world, Identifier struct_id, String structType, boolean randomPlacement) {
         StructureTemplateManager structureTemplateManager = world.getStructureTemplateManager();
@@ -38,6 +39,7 @@ public class StructureStore {
 
         if(template.isPresent()) {
             this.placementData = new StructurePlacementData();
+            this.offset = new BlockPos(0, 0, 0);
             this.template = template.get();
             this.blockInfoList = extractBlockList();
             this.queue = new BuildQueue(this.blockInfoList);
@@ -77,7 +79,7 @@ public class StructureStore {
         for(StructureTemplate.StructureBlockInfo block : blockInfoList) {
             if(block.pos.getY() == 0) {
                 BlockPos underBlock = block.pos.down();
-                while(this.world.getBlockState(underBlock.add(this.placementData.getPosition())).getMaterial().isReplaceable()) {
+                while(this.world.getBlockState(underBlock.add(this.offset)).getMaterial().isReplaceable()) {
                     foundationBlocks.add(new StructureTemplate.StructureBlockInfo(underBlock, adaptedState, null) );
                     underBlock = underBlock.down();
                 }

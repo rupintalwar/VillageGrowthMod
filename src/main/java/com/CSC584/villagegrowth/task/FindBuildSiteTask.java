@@ -14,7 +14,7 @@ import net.minecraft.util.math.*;
 import java.util.*;
 
 public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
-    private static final int SEARCH_RADIUS = 50;
+    private static final int SEARCH_RADIUS = 30;
     private static final int EMPTY_SPACE_SIZE = 15;
 
     private final Map<String, ArrayList<Identifier>> houseStructureMap = new HashMap<>();
@@ -42,7 +42,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
         StructureStore structureStore = new StructureStore(world, selectedStruct, villageType, true);
 
         entity.getBrain().remember(ModVillagers.STRUCTURE_BUILD_INFO, structureStore);
-        foundSpot = false;
+        this.foundSpot = false;
     }
 
     @Override
@@ -98,12 +98,10 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
                     checkSpot(world, structureStore, structureCorner, y);
                     y--;
                 }
-                structureStore.placementData.setPosition(
-                        new BlockPos(
-                                structureCorner.getX(),
-                                y + (this.foundSpot ? 0 : 1),
-                                structureCorner.getZ()
-                        ));
+                structureStore.offset = new BlockPos(
+                        structureCorner.getX(),
+                        y + (this.foundSpot ? 0 : 1),
+                        structureCorner.getZ());
 
                 this.foundSpot = true;
             }
@@ -116,11 +114,10 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
     }
 
     private void checkSpot(ServerWorld world, StructureStore structureStore, BlockPos structureCorner, int y) {
-        structureStore.placementData.setPosition(
-                new BlockPos(structureCorner.getX(), y, structureCorner.getZ()));
+        structureStore.offset = new BlockPos(structureCorner.getX(), y, structureCorner.getZ());
 
         BlockBox structureBox = structureStore.template.calculateBoundingBox(
-                structureStore.placementData, structureStore.placementData.getPosition());
+                structureStore.placementData, structureStore.offset);
 
         this.foundSpot = world.isSpaceEmpty(Box.from(structureBox));
     }
