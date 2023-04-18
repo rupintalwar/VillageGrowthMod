@@ -39,7 +39,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
         ArrayList<Identifier> houseStructureList = houseStructureMap.get(villageType);
         Identifier selectedStruct = houseStructureList.get(new Random().nextInt(houseStructureList.size()));
 
-        StructureStore structureStore = new StructureStore(world, selectedStruct, villageType, false);
+        StructureStore structureStore = new StructureStore(world, selectedStruct, villageType, true);
 
         entity.getBrain().remember(ModVillagers.STRUCTURE_BUILD_INFO, structureStore);
         this.foundSpot = false;

@@ -48,11 +48,12 @@ public class BuildQueue {
     }
 
     public int initialPriority(StructureBlockInfo block) {
-        BlockPos mid = bounds.getCenter();
-
-        return block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) +
-                Math.abs(block.pos.getX() - mid.getX()) +
-                Math.abs(block.pos.getZ() - mid.getZ());
+//        BlockPos mid = bounds.getCenter();
+//
+//        return block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) +
+//                Math.abs(block.pos.getX() - mid.getX()) +
+//                Math.abs(block.pos.getZ() - mid.getZ());
+        return block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) + block.pos.getX() * bounds.getBlockCountZ() + block.pos.getZ();
     }
 
     public void setBounds(BlockBox bounds) {

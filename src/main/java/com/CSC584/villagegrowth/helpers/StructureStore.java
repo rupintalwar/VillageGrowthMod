@@ -6,6 +6,7 @@ import net.minecraft.block.*;
 import net.minecraft.command.argument.BlockArgumentParser;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.StructureTemplateManager;
@@ -14,8 +15,12 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.RotationPropertyHelper;
+
 
 import java.util.*;
+
 
 public class StructureStore {
     private static final Map<String, Block> foundationBlockMap = Map.of(
@@ -43,11 +48,11 @@ public class StructureStore {
             this.offset = new BlockPos(0, 0, 0);
             this.template = template.get();
             this.world = world;
-            this.blockInfoList = extractBlockList();
-            this.structType = structType;
             if(randomPlacement) {
                 this.randomPlacement();
             }
+            this.structType = structType;
+            this.blockInfoList = extractBlockList();
         }
     }
 
@@ -84,8 +89,23 @@ public class StructureStore {
                 output = Blocks.AIR.getDefaultState();
             }
         }
-        output = output.rotate(this.placementData.getRotation());
+        if(output.isOf(Blocks.OAK_DOOR)) {
+            int a = 0;
+        }
+
+//        if (output.getProperties())
+
         output = output.mirror(this.placementData.getMirror());
+//        int currentRot = output.get(Properties.ROTATION);
+//        Direction newDir = this.placementData.getRotation().rotate(
+//                RotationPropertyHelper.toDirection(currentRot).get());
+
+//        output.with(Properties.ROTATION,
+//                this.placementData.getRotation().rotate(
+//                        Integer.valueOf(output.get(Properties.ROTATION).toString())
+//                ));
+        output = output.rotate(this.placementData.getRotation());
+
         returnedBlock = new StructureTemplate.StructureBlockInfo(block.pos,
                 output, block.nbt);
         return returnedBlock;
@@ -94,7 +114,7 @@ public class StructureStore {
     public void randomPlacement() {
         BlockMirror[] mirrorTypes = BlockMirror.values();
         this.placementData.setMirror(Util.getRandom(mirrorTypes, this.world.getRandom()));
-        this.placementData.setRotation(BlockRotation.random(this.world.getRandom()));
+        this.placementData.setRotation(BlockRotation.CLOCKWISE_90);
     }
 
     public void createFoundation() {
