@@ -14,7 +14,7 @@ import net.minecraft.util.math.*;
 import java.util.*;
 
 public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
-    private static final int SEARCH_RADIUS = 30;
+    private static final int SEARCH_RADIUS = 100;
     private static final int EMPTY_SPACE_SIZE = 15;
 
     private final Map<String, ArrayList<Identifier>> houseStructureMap = new HashMap<>();
@@ -39,7 +39,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
         ArrayList<Identifier> houseStructureList = houseStructureMap.get(villageType);
         Identifier selectedStruct = houseStructureList.get(new Random().nextInt(houseStructureList.size()));
 
-        StructureStore structureStore = new StructureStore(world, selectedStruct, villageType, true);
+        StructureStore structureStore = new StructureStore(world, selectedStruct, villageType, false);
 
         entity.getBrain().remember(ModVillagers.STRUCTURE_BUILD_INFO, structureStore);
         this.foundSpot = false;
@@ -85,7 +85,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
             //Find empty space in the column within reason
             int y = structureCorner.getY();
             int maxY = Math.min(world.getTopY() - structureStore.template.getSize().getY(), y + (int) projectDist);
-            while(y < maxY && !this.foundSpot) {
+            while(y <= maxY && !this.foundSpot) {
                 checkSpot(world, structureStore, structureCorner, y);
                 y++;
             }
@@ -115,9 +115,9 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
 
     private void checkSpot(ServerWorld world, StructureStore structureStore, BlockPos structureCorner, int y) {
         structureStore.offset = new BlockPos(structureCorner.getX(), y, structureCorner.getZ());
-
         BlockBox structureBox = structureStore.template.calculateBoundingBox(
                 structureStore.placementData, structureStore.offset);
+        structureStore.placementData.setBoundingBox(structureBox);
 
         this.foundSpot = world.isSpaceEmpty(Box.from(structureBox));
     }

@@ -6,6 +6,7 @@ import com.CSC584.villagegrowth.helpers.StructureStore;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.JigsawBlock;
 import net.minecraft.entity.ai.brain.BlockPosLookTarget;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
@@ -13,6 +14,7 @@ import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.structure.StructureTemplate;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.village.VillagerProfession;
 import net.minecraft.world.GameRules;
@@ -22,7 +24,7 @@ import java.util.Optional;
 
 public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
-    private static final int BUILD_RANGE = 3;
+    private static final int BUILD_RANGE = 7;
     private static final int MAX_RUN_TICKS = 10000;
     private long nextResponseTime;
 
@@ -49,7 +51,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         if(optional.isPresent()) {
             StructureStore structureStore = optional.get();
 
-            if(structureStore.queue.getBlock() != null) {
+            if(structureStore.queue != null && structureStore.queue.getBlock() != null) {
                 return true;
             } else {
                 //nothing left to build, forget the memory
@@ -78,10 +80,10 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         Optional<StructureStore> optional = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
         if(optional.isPresent()) {
             StructureStore structureStore = optional.get();
-
             //Position of target block
-            BlockPos pos = structureStore.offset.add(
-                    structureStore.queue.getBlock().getBlock().pos);
+            BlockPos pos = StructureTemplate.transform(
+                    structureStore.placementData,
+                    structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset);
             VillageGrowthMod.LOGGER.info("Target Pos: " + pos);
 
             //Check whether to attempt placing
@@ -112,9 +114,13 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         }
     }
     private void setWalkTarget(VillagerEntity villagerEntity, StructureStore structureStore) {
-        BlockPos pos = structureStore.offset.add(structureStore.queue.getBlock().getBlock().pos);
+        BlockPos pos = StructureTemplate.transform(
+                structureStore.placementData,
+                structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset);
+        VillageGrowthMod.LOGGER.info("Walk target: " + pos.toString());
         villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
-                new WalkTarget(new BlockPosLookTarget(pos), 0.5f, BUILD_RANGE));
+                new WalkTarget(new BlockPosLookTarget(pos), 0.5f, 3));
+
         villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,
                 new BlockPosLookTarget(pos));
     }

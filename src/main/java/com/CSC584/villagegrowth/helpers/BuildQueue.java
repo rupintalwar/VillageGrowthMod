@@ -1,6 +1,9 @@
 package com.CSC584.villagegrowth.helpers;
 
 import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.StructureSpawns;
 
 import java.util.Comparator;
 import java.util.List;
@@ -10,11 +13,12 @@ public class BuildQueue {
     boolean finished;
     PriorityQueue<PriorityBlock> pending;
     List<StructureBlockInfo> allBlocks;
-
-    public BuildQueue(List<StructureBlockInfo> allBlocks) {
+    BlockBox bounds;
+    public BuildQueue(List<StructureBlockInfo> allBlocks, BlockBox bounds) {
         this.finished = false;
         this.pending = new PriorityQueue<>(10, new PriorityBlockComparator());
         this.allBlocks = allBlocks;
+        this.bounds = bounds;
         for (StructureBlockInfo block : this.allBlocks) {
             queueNewBlock(block);
         }
@@ -34,7 +38,7 @@ public class BuildQueue {
     }
 
     public void requeueBlock(PriorityBlock priorityBlock) {
-        priorityBlock.priority += 2;
+        priorityBlock.priority += 2 * (bounds.getBlockCountX() + bounds.getBlockCountZ());
         priorityBlock.queueCount++;
         this.pending.add(priorityBlock);
     }
@@ -44,7 +48,15 @@ public class BuildQueue {
     }
 
     public int initialPriority(StructureBlockInfo block) {
-        return block.pos.getY();
+        BlockPos mid = bounds.getCenter();
+
+        return block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) +
+                Math.abs(block.pos.getX() - mid.getX()) +
+                Math.abs(block.pos.getZ() - mid.getZ());
+    }
+
+    public void setBounds(BlockBox bounds) {
+        this.bounds = bounds;
     }
 
     public static class PriorityBlock {
