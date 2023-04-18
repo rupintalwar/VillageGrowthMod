@@ -1,11 +1,10 @@
 package com.CSC584.villagegrowth.task;
 
 import com.CSC584.villagegrowth.VillageGrowthMod;
+import com.CSC584.villagegrowth.helpers.BuildQueue;
 import com.CSC584.villagegrowth.helpers.StructureStore;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
-import net.minecraft.block.AirBlock;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.ai.brain.BlockPosLookTarget;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
@@ -14,7 +13,6 @@ import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.village.VillagerProfession;
 import net.minecraft.world.GameRules;
@@ -26,8 +24,6 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
     private static final int BUILD_RANGE = 5;
     private static final int MAX_RUN_TICKS = 10000;
-
-    private StructureBlockInfo currentTarget;
     private long nextResponseTime;
 
     public ConstructBuildingTask() {
@@ -49,10 +45,18 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         }
 
 
-        Optional<StructureStore> optionalStructureStore = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
+        Optional<StructureStore> optional = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
+        if(optional.isPresent()) {
+            StructureStore structureStore = optional.get();
 
-        //return optionalBuildSite.get().getPos().isWithinDistance(villagerEntity.getPos(), BUILD_RANGE);
-        return optionalStructureStore.isPresent();
+            if(structureStore.queue.getBlock() != null) {
+                return true;
+            } else {
+                //nothing left to build, forget the memory
+                villagerEntity.getBrain().forget(ModVillagers.STRUCTURE_BUILD_INFO);
+            }
+        }
+        return false;
     }
 
     @Override
@@ -60,13 +64,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         Optional<StructureStore> optional = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
         if(optional.isPresent()) {
             StructureStore structureStore = optional.get();
-            this.currentTarget = structureStore.queue.getBlock();
-
-            BlockPos pos2 = this.currentTarget.pos;
-            villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
-                    new WalkTarget(new BlockPosLookTarget(pos2), 0.5f, BUILD_RANGE));
-            villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,
-                    new BlockPosLookTarget(pos2));
+            setWalkTarget(villagerEntity, structureStore);
         }
     }
 
@@ -78,36 +76,56 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
     @Override
     protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
         Optional<StructureStore> optional = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
-        if(this.currentTarget != null && optional.isPresent()) {
+        if(optional.isPresent()) {
             StructureStore structureStore = optional.get();
-            BlockPos pos = structureStore.placementData.getPosition().add(this.currentTarget.pos);
-            //VillageGrowthMod.LOGGER.info("Build Site: " + structureStore.placementData.toString());
 
+            //Position of target block
+            BlockPos pos = structureStore.placementData.getPosition().add(
+                    structureStore.queue.getBlock().getBlock().pos);
+            VillageGrowthMod.LOGGER.info("Target Pos: " + pos);
 
+            //Check whether to attempt placing
             if (l > this.nextResponseTime && pos.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
                 BlockState blockState = serverWorld.getBlockState(pos);
-                Block block = blockState.getBlock();
-                if (block instanceof AirBlock || blockState.isReplaceable()) {
-                    serverWorld.setBlockState(pos, this.currentTarget.state);
-                    serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos, GameEvent.Emitter.of(villagerEntity, this.currentTarget.state));
-                    VillageGrowthMod.LOGGER.info("Target Pos: " + pos.toString());
-                    VillageGrowthMod.LOGGER.info("Placed " + this.currentTarget.state.getBlock().getName());
+                BuildQueue.PriorityBlock target = structureStore.queue.removeBlock();
+                if (    blockState.isReplaceable() &&
+                        (hasSolidNeighbor(serverWorld, pos) || target.getQueueCount() > structureStore.template.getSize().getY())) {
+                    //place the block
+                    serverWorld.setBlockState(pos, target.getBlock().state);
+                    serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos, GameEvent.Emitter.of(villagerEntity, target.getBlock().state));
+                    VillageGrowthMod.LOGGER.debug("Target Pos: " + pos);
+                    VillageGrowthMod.LOGGER.debug("Placed " + target.getBlock().state.getBlock().getName());
+                } else if (!blockState.isReplaceable() && target.getQueueCount() > structureStore.template.getSize().getY()) {
+                    //attempted plenty of times, ignore the block
+                    VillageGrowthMod.LOGGER.debug("Target Pos: " + pos);
+                    VillageGrowthMod.LOGGER.debug("Ignored " + target.getBlock().state.getBlock().getName());
                 } else {
-                    structureStore.queue.requeueBlock(this.currentTarget, pos.getY()*2);
-                    this.currentTarget = structureStore.queue.getBlock();
-                    if (this.currentTarget != null) {
-                        this.nextResponseTime = l + 2L;
-                        BlockPos pos2 = structureStore.placementData.getPosition().add(this.currentTarget.pos);
-                        villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
-                                new WalkTarget(new BlockPosLookTarget(pos2), 0.5f, BUILD_RANGE));
-                        villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,
-                                new BlockPosLookTarget(pos2));
-                    } else {
-                        villagerEntity.getBrain().forget(ModVillagers.STRUCTURE_BUILD_INFO);
-                    }
+                    //try again later
+                    structureStore.queue.requeueBlock(target);
+                }
+
+                if (structureStore.queue.getBlock() != null) {
+                    this.nextResponseTime = l + 2L;
+                    setWalkTarget(villagerEntity, structureStore);
                 }
             }
         }
+    }
+    private void setWalkTarget(VillagerEntity villagerEntity, StructureStore structureStore) {
+        BlockPos pos = structureStore.placementData.getPosition().add(structureStore.queue.getBlock().getBlock().pos);
+        villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
+                new WalkTarget(new BlockPosLookTarget(pos), 0.5f, BUILD_RANGE));
+        villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,
+                new BlockPosLookTarget(pos));
+    }
+
+    private boolean hasSolidNeighbor(ServerWorld world, BlockPos pos) {
+        return  world.getBlockState(pos.up()).getMaterial().isSolid() ||
+                world.getBlockState(pos.down()).getMaterial().isSolid() ||
+                world.getBlockState(pos.north()).getMaterial().isSolid() ||
+                world.getBlockState(pos.south()).getMaterial().isSolid() ||
+                world.getBlockState(pos.east()).getMaterial().isSolid() ||
+                world.getBlockState(pos.west()).getMaterial().isSolid();
     }
 
     @Override

@@ -36,10 +36,10 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
         VillageGrowthMod.LOGGER.info("Find Build Site:run123!");
 
         String villageType = entity.getVillagerData().getType().toString();
-        ArrayList<Identifier> house_structure_list = houseStructureMap.get(villageType);
-        Identifier selectedStruct = house_structure_list.get(new Random().nextInt(house_structure_list.size()));
+        ArrayList<Identifier> houseStructureList = houseStructureMap.get(villageType);
+        Identifier selectedStruct = houseStructureList.get(new Random().nextInt(houseStructureList.size()));
 
-        StructureStore structureStore = new StructureStore(world, selectedStruct, true);
+        StructureStore structureStore = new StructureStore(world, selectedStruct, villageType, true);
 
         entity.getBrain().remember(ModVillagers.STRUCTURE_BUILD_INFO, structureStore);
         foundSpot = false;
@@ -106,6 +106,11 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
                         ));
 
                 this.foundSpot = true;
+            }
+
+            //add filler blocks as a foundation
+            if(this.foundSpot) {
+                structureStore.createFoundation();
             }
         }
     }

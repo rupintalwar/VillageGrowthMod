@@ -16,33 +16,58 @@ public class BuildQueue {
         this.pending = new PriorityQueue<>(10, new PriorityBlockComparator());
         this.allBlocks = allBlocks;
         for (StructureBlockInfo block : this.allBlocks) {
-            this.pending.add(new PriorityBlock(block, initialPriority(block)));
+            queueNewBlock(block);
         }
     }
-    public StructureBlockInfo getBlock() {
+    public PriorityBlock getBlock() {
         if (this.pending.isEmpty()) {
             this.finished = true;
-            return null;
         }
-        return this.pending.poll().block;
+        return this.pending.peek();
     }
 
-    public void requeueBlock(StructureBlockInfo block, int newPriority) {
-        this.pending.add(new PriorityBlock(block, newPriority));
+    public PriorityBlock removeBlock() {
+        if (this.pending.isEmpty()) {
+            this.finished = true;
+        }
+        return this.pending.poll();
+    }
+
+    public void requeueBlock(PriorityBlock priorityBlock) {
+        priorityBlock.priority += 2;
+        priorityBlock.queueCount++;
+        this.pending.add(priorityBlock);
+    }
+
+    public void queueNewBlock(StructureBlockInfo block) {
+        this.pending.add(new PriorityBlock(block, initialPriority(block)));
     }
 
     public int initialPriority(StructureBlockInfo block) {
-
         return block.pos.getY();
     }
 
     public static class PriorityBlock {
         StructureBlockInfo block;
         int priority;
+        int queueCount;
+
+        public StructureBlockInfo getBlock() {
+            return block;
+        }
+
+        public int getPriority() {
+            return priority;
+        }
+
+        public int getQueueCount() {
+            return queueCount;
+        }
 
         public PriorityBlock(StructureBlockInfo b, int p) {
             this.block = b;
             this.priority = p;
+            this.queueCount = 1;
         }
     }
 
