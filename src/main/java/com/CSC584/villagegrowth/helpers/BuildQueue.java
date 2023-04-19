@@ -2,8 +2,6 @@ package com.CSC584.villagegrowth.helpers;
 
 import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
 import net.minecraft.util.math.BlockBox;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.StructureSpawns;
 
 import java.util.Comparator;
 import java.util.List;
@@ -14,6 +12,8 @@ public class BuildQueue {
     PriorityQueue<PriorityBlock> pending;
     List<StructureBlockInfo> allBlocks;
     BlockBox bounds;
+    int attempts;
+
     public BuildQueue(List<StructureBlockInfo> allBlocks, BlockBox bounds) {
         this.finished = false;
         this.pending = new PriorityQueue<>(10, new PriorityBlockComparator());
@@ -34,6 +34,7 @@ public class BuildQueue {
         if (this.pending.isEmpty()) {
             this.finished = true;
         }
+        this.setAttempts(0);
         return this.pending.poll();
     }
 
@@ -48,12 +49,9 @@ public class BuildQueue {
     }
 
     public int initialPriority(StructureBlockInfo block) {
-//        BlockPos mid = bounds.getCenter();
-//
-//        return block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) +
-//                Math.abs(block.pos.getX() - mid.getX()) +
-//                Math.abs(block.pos.getZ() - mid.getZ());
-        return block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) + block.pos.getX() * bounds.getBlockCountZ() + block.pos.getZ();
+        return  block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) +
+                block.pos.getX() * bounds.getBlockCountZ() +
+                block.pos.getZ();
     }
 
     public void setBounds(BlockBox bounds) {
@@ -90,5 +88,17 @@ public class BuildQueue {
         public int compare(PriorityBlock o1, PriorityBlock o2) {
             return Integer.compare(o1.priority, o2.priority);
         }
+    }
+
+
+    public int getAttempts() {
+        return attempts;
+    }
+
+    public void setAttempts(int attempts) {
+        this.attempts = attempts;
+    }
+    public void incrementAttempt() {
+        this.attempts++;
     }
 }

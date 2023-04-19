@@ -3,7 +3,6 @@ package com.CSC584.villagegrowth.mixin;
 import com.CSC584.villagegrowth.task.ConstructBuildingTask;
 import com.CSC584.villagegrowth.task.FindBuildSiteTask;
 import com.CSC584.villagegrowth.task.MasonWorkTask;
-import com.CSC584.villagegrowth.task.TillLandTask;
 import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.entity.EntityType;
@@ -29,19 +28,11 @@ public class VillagerTaskListProviderMixin {
 
         boolean overrideTasks = true;
 
-        if(profession == VillagerProfession.FARMER) {
+        if(profession == VillagerProfession.MASON) {
             randomTasks.addAll(ImmutableList.of(
-                    Pair.of(new FarmerWorkTask(), 7),
-                    Pair.of(new FarmerVillagerTask(), 2),
-                    Pair.of(new BoneMealTask(), 4),
-                    Pair.of(new TillLandTask(), 3)
-            ));
-
-        } else if(profession == VillagerProfession.MASON) {
-            randomTasks.addAll(ImmutableList.of(
-                    Pair.of(new ConstructBuildingTask(), 7),
-                    Pair.of(new MasonWorkTask(), 5),
-                    Pair.of(new FindBuildSiteTask(), 4)
+                    Pair.of(new ConstructBuildingTask(), 5),
+                    Pair.of(new MasonWorkTask(), 7),
+                    Pair.of(new FindBuildSiteTask(), 2)
             ));
 
             //tasks.addAll(ImmutableList.of(

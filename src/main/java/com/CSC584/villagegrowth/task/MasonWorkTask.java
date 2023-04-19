@@ -25,7 +25,7 @@ public class MasonWorkTask extends VillagerWorkTask {
         GlobalPos globalPos = optional.get();
         BlockState blockState = world.getBlockState(globalPos.getPos());
         if (blockState.isOf(Blocks.STONECUTTER)) {
-            this.placeBlockOnTop(world, entity, globalPos);
+            //this.placeBlockOnTop(world, entity, globalPos);
         }
     }
 

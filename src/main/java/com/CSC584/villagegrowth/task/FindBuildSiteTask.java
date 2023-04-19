@@ -14,8 +14,9 @@ import net.minecraft.util.math.*;
 import java.util.*;
 
 public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
-    private static final int SEARCH_RADIUS = 100;
+    private static final int SEARCH_RADIUS = 50;
     private static final int EMPTY_SPACE_SIZE = 15;
+    private static final double PROJECTION_OFFSET = 3;
 
     private final Map<String, ArrayList<Identifier>> houseStructureMap = new HashMap<>();
     private final Set<Identifier> houseStructureSet = new HashSet<>();
@@ -65,13 +66,20 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
 
         //find the furthest villager from the center to define the projection length
         double projectDist = entity.getPos().squaredDistanceTo(groupCenter);
+//        for(VillagerEntity villager : list) {
+//            double computedDist = villager.getPos().squaredDistanceTo(groupCenter);
+//            if(computedDist > projectDist) {
+//                projectDist = computedDist;
+//            }
+//        }
+//        projectDist = Math.sqrt(projectDist);
+
+        //find the villager position standard deviation
         for(VillagerEntity villager : list) {
-            double computedDist = villager.getPos().squaredDistanceTo(groupCenter);
-            if(computedDist > projectDist) {
-                projectDist = computedDist;
-            }
+            projectDist += villager.getPos().squaredDistanceTo(groupCenter);
         }
-        projectDist = Math.sqrt(projectDist);
+        projectDist = Math.sqrt(projectDist / (list.size() + 1)) + PROJECTION_OFFSET;
+
 
         //project out from the center to a random direction
         Vec3d projectedCenter = groupCenter.addRandom(world.getRandom(), (float) projectDist*2);
@@ -86,7 +94,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
             int y = structureCorner.getY();
             int maxY = Math.min(world.getTopY() - structureStore.template.getSize().getY(), y + (int) projectDist);
             while(y <= maxY && !this.foundSpot) {
-                checkSpot(world, structureStore, structureCorner, y);
+                checkSpot(world, structureStore, structureCorner, y, list);
                 y++;
             }
 
@@ -95,7 +103,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
                 //Go down and find the lowest valid point.
                 int minY = Math.max(world.getBottomY(), y - (int) projectDist);
                 while(y > minY && this.foundSpot) {
-                    checkSpot(world, structureStore, structureCorner, y);
+                    checkSpot(world, structureStore, structureCorner, y, list);
                     y--;
                 }
                 structureStore.offset = new BlockPos(
@@ -108,18 +116,39 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
 
             //add filler blocks as a foundation
             if(this.foundSpot) {
-                structureStore.createFoundation();
+                //if too many filler blocks are needed, it's a bad spot
+                this.foundSpot = structureStore.createFoundation();
             }
         }
     }
 
-    private void checkSpot(ServerWorld world, StructureStore structureStore, BlockPos structureCorner, int y) {
+    private void checkSpot(ServerWorld world,
+                           StructureStore structureStore,
+                           BlockPos structureCorner,
+                           int y,
+                           List<VillagerEntity> villagerNeighbors) {
         structureStore.offset = new BlockPos(structureCorner.getX(), y, structureCorner.getZ());
         BlockBox structureBox = structureStore.template.calculateBoundingBox(
                 structureStore.placementData, structureStore.offset);
         structureStore.placementData.setBoundingBox(structureBox);
 
         this.foundSpot = world.isSpaceEmpty(Box.from(structureBox));
+
+        //Check if the spot interferes with another nearby villager
+        for (VillagerEntity villager : villagerNeighbors) {
+            Optional<StructureStore> optional = villager.getBrain().getOptionalRegisteredMemory(ModVillagers.STRUCTURE_BUILD_INFO);
+            if (optional.isPresent()) {
+                StructureStore store = optional.get();
+                //check if villager has a block queue (is building) and if the box intersects
+                if(store.queue != null &&
+                        store.queue.getBlock() != null &&
+                        store.placementData.getBoundingBox() != null &&
+                        store.placementData.getBoundingBox().intersects(structureBox)) {
+                    //Don't build where someone else is
+                    this.foundSpot = false;
+                }
+            }
+        }
     }
 
     private void updateHouseStructures(ServerWorld world) {

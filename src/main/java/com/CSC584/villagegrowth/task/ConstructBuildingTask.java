@@ -1,17 +1,20 @@
 package com.CSC584.villagegrowth.task;
 
 import com.CSC584.villagegrowth.VillageGrowthMod;
+import com.CSC584.villagegrowth.blocks.ModBlocks;
 import com.CSC584.villagegrowth.helpers.BuildQueue;
 import com.CSC584.villagegrowth.helpers.StructureStore;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.JigsawBlock;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.brain.BlockPosLookTarget;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
+import net.minecraft.entity.ai.pathing.Path;
+import net.minecraft.entity.passive.ParrotEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplate;
@@ -25,7 +28,8 @@ import java.util.Optional;
 public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
     private static final int BUILD_RANGE = 7;
-    private static final int MAX_RUN_TICKS = 10000;
+    private static final int MAX_ATTEMPTS = 100;
+    private static final long DELAY = 5;
     private long nextResponseTime;
 
     public ConstructBuildingTask() {
@@ -51,11 +55,13 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         if(optional.isPresent()) {
             StructureStore structureStore = optional.get();
 
-            if(structureStore.queue != null && structureStore.queue.getBlock() != null) {
+            if((structureStore.queue != null && structureStore.queue.getBlock() != null) ||
+                    !structureStore.scaffoldStack.isEmpty()) {
                 return true;
             } else {
-                //nothing left to build, forget the memory
+                //nothing left to build or clean up, forget the memory
                 villagerEntity.getBrain().forget(ModVillagers.STRUCTURE_BUILD_INFO);
+
             }
         }
         return false;
@@ -64,9 +70,11 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
     @Override
     protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
         Optional<StructureStore> optional = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
-        if(optional.isPresent()) {
+        if(optional.isPresent() && optional.get().queue != null && optional.get().queue.getBlock() != null) {
             StructureStore structureStore = optional.get();
-            setWalkTarget(villagerEntity, structureStore);
+            setWalkTarget(villagerEntity, StructureTemplate.transform(
+                    structureStore.placementData,
+                    structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset));
         }
     }
 
@@ -80,44 +88,99 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         Optional<StructureStore> optional = villagerEntity.getBrain().getOptionalMemory(ModVillagers.STRUCTURE_BUILD_INFO);
         if(optional.isPresent()) {
             StructureStore structureStore = optional.get();
-            //Position of target block
-            BlockPos pos = StructureTemplate.transform(
-                    structureStore.placementData,
-                    structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset);
-            VillageGrowthMod.LOGGER.info("Target Pos: " + pos);
 
-            //Check whether to attempt placing
-            if (l > this.nextResponseTime && pos.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
-                BlockState blockState = serverWorld.getBlockState(pos);
-                BuildQueue.PriorityBlock target = structureStore.queue.removeBlock();
-                if (    blockState.isReplaceable() &&
-                        (hasSolidNeighbor(serverWorld, pos) || target.getQueueCount() > structureStore.template.getSize().getY())) {
-                    //place the block
-                    serverWorld.setBlockState(pos, target.getBlock().state);
-                    serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos, GameEvent.Emitter.of(villagerEntity, target.getBlock().state));
-                    VillageGrowthMod.LOGGER.debug("Target Pos: " + pos);
-                    VillageGrowthMod.LOGGER.debug("Placed " + target.getBlock().state.getBlock().getName());
-                } else if (!blockState.isReplaceable() && target.getQueueCount() > structureStore.template.getSize().getY()) {
-                    //attempted plenty of times, ignore the block
-                    VillageGrowthMod.LOGGER.debug("Target Pos: " + pos);
-                    VillageGrowthMod.LOGGER.debug("Ignored " + target.getBlock().state.getBlock().getName());
+            if (l > this.nextResponseTime) {
+
+                boolean cleanupMode = false;
+
+                //Timeout the build after too long. Villager may get stuck otherwise. Start cleanup
+                if (structureStore.queue == null ||
+                        structureStore.queue.getBlock() == null ||
+                        structureStore.queue.getAttempts() > MAX_ATTEMPTS) {
+                    structureStore.queue = null;
+                    cleanupMode = true;
+                }
+
+                if(cleanupMode) {
+                    if(!structureStore.scaffoldStack.isEmpty()) {
+                        BlockPos pos = structureStore.scaffoldStack.peek();
+                        while (!serverWorld.getBlockState(pos).isOf(ModBlocks.MARKED_SCAFFOLD)) {
+                            structureStore.scaffoldStack.pop();
+                            if (structureStore.scaffoldStack.isEmpty()) {
+                                //nothing left to clean, exit
+                                return;
+                            }
+
+                            pos = structureStore.scaffoldStack.peek();
+                        }
+
+                        setWalkTarget(villagerEntity, pos);
+
+                        if (pos.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
+                            serverWorld.removeBlock(pos, false);
+                            structureStore.scaffoldStack.pop();
+                        }
+                    }
                 } else {
-                    //try again later
-                    structureStore.queue.requeueBlock(target);
-                }
+                    structureStore.queue.incrementAttempt();
 
-                if (structureStore.queue.getBlock() != null) {
-                    this.nextResponseTime = l + 2L;
-                    setWalkTarget(villagerEntity, structureStore);
+                    //Position of target block
+                    BlockPos pos = StructureTemplate.transform(
+                            structureStore.placementData,
+                            structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset);
+
+                    VillageGrowthMod.LOGGER.info(
+                            "Target Pos: " + pos.toString().substring(8) +
+                                    " Attempt: " + structureStore.queue.getAttempts()
+                    );
+
+
+                    //Check whether to attempt placing
+                    if (pos.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
+                        BlockState blockState = serverWorld.getBlockState(pos);
+                        BuildQueue.PriorityBlock target = structureStore.queue.removeBlock();
+                        if ((blockState.isReplaceable() || blockState.isOf(ModBlocks.MARKED_SCAFFOLD)) &&
+                                (hasSolidNeighbor(serverWorld, pos) || target.getQueueCount() > structureStore.template.getSize().getY())) {
+                            //place the block
+                            serverWorld.setBlockState(pos, target.getBlock().state);
+                            serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos, GameEvent.Emitter.of(villagerEntity, target.getBlock().state));
+
+                        } else if (!blockState.isReplaceable() && target.getQueueCount() > structureStore.template.getSize().getY()) {
+                            //attempted plenty of times, ignore the block
+                            VillageGrowthMod.LOGGER.debug("Ignored " + target.getBlock().state.getBlock().getName());
+                        } else {
+                            //try again later
+                            structureStore.queue.requeueBlock(target);
+                        }
+
+                        if (structureStore.queue.getBlock() != null) {
+                            setWalkTarget(villagerEntity, StructureTemplate.transform(
+                                    structureStore.placementData,
+                                    structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset));
+                        }
+                    }
+
+                    //attempt to build a path
+                    if(structureStore.queue.getAttempts() > MAX_ATTEMPTS / 2) {
+                        BlockPos pos2 = createTempPath(serverWorld, pos, villagerEntity);
+
+                        if(pos != pos2) {
+                            //there exists a block that can be placed
+                            if (pos2.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
+                                //place the block and add it to the stack
+                                BlockState target =  ModBlocks.MARKED_SCAFFOLD.getDefaultState();
+                                serverWorld.setBlockState(pos2,target);
+                                serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos2, GameEvent.Emitter.of(villagerEntity, target));
+                                structureStore.scaffoldStack.push(pos2);
+                            }
+                        }
+                    }
                 }
+                this.nextResponseTime = l + DELAY;
             }
         }
     }
-    private void setWalkTarget(VillagerEntity villagerEntity, StructureStore structureStore) {
-        BlockPos pos = StructureTemplate.transform(
-                structureStore.placementData,
-                structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset);
-        VillageGrowthMod.LOGGER.info("Walk target: " + pos.toString());
+    private void setWalkTarget(VillagerEntity villagerEntity, BlockPos pos) {
         villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
                 new WalkTarget(new BlockPosLookTarget(pos), 0.5f, 3));
 
@@ -140,4 +203,20 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         villagerEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
     }
 
+
+    private BlockPos createTempPath(ServerWorld world, BlockPos pos, VillagerEntity villagerEntity) {
+        ParrotEntity flyingVillager = new ParrotEntity(EntityType.PARROT, world);//FlyingVillagerEntity(EntityType.VILLAGER, world);
+        flyingVillager.setPosition(villagerEntity.getPos());
+        Path path =  flyingVillager.getNavigation().findPathTo(pos, 1);
+        while(!path.isFinished()) {
+            BlockPos pos2 = path.getCurrentNode().getBlockPos();
+            if(world.getBlockState(pos2).isAir()) {
+                flyingVillager.discard();
+                return pos2;
+            }
+            path.next();
+        }
+        flyingVillager.discard();
+        return pos;
+    }
 }

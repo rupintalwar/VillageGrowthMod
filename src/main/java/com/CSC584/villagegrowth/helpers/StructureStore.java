@@ -2,11 +2,12 @@ package com.CSC584.villagegrowth.helpers;
 
 import com.CSC584.villagegrowth.mixin.StructureTemplateInterfaceMixin;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.block.*;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.command.argument.BlockArgumentParser;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.state.property.Properties;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.StructureTemplateManager;
@@ -14,10 +15,8 @@ import net.minecraft.util.BlockMirror;
 import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.RotationPropertyHelper;
-
 
 import java.util.*;
 
@@ -29,6 +28,7 @@ public class StructureStore {
             "taiga", Blocks.DIRT,
             "savanna", Blocks.DIRT,
             "snowy", Blocks.DIRT);
+    private static final int MAX_LAYERS = 2;
     private String structType;
     private ServerWorld world;
     public StructureTemplate template;
@@ -38,12 +38,15 @@ public class StructureStore {
     public StructurePlacementData placementData;
     public BlockPos offset;
 
+    public Stack<BlockPos> scaffoldStack;
+
     public StructureStore(ServerWorld world, Identifier struct_id, String structType, boolean randomPlacement) {
         StructureTemplateManager structureTemplateManager = world.getStructureTemplateManager();
 
         Optional<StructureTemplate> template = structureTemplateManager.getTemplate(struct_id);
 
         if(template.isPresent()) {
+            this.scaffoldStack = new Stack<>();
             this.placementData = new StructurePlacementData();
             this.offset = new BlockPos(0, 0, 0);
             this.template = template.get();
@@ -74,7 +77,6 @@ public class StructureStore {
     }
 
     public StructureTemplate.StructureBlockInfo preprocessBlock(StructureTemplate.StructureBlockInfo block) {
-        StructureTemplate.StructureBlockInfo returnedBlock = block;
         BlockState output = block.state;
         if (block.state.isOf(Blocks.JIGSAW)) {
             String string = block.nbt.getString("final_state");
@@ -89,38 +91,25 @@ public class StructureStore {
                 output = Blocks.AIR.getDefaultState();
             }
         }
-        if(output.isOf(Blocks.OAK_DOOR)) {
-            int a = 0;
-        }
-
-//        if (output.getProperties())
 
         output = output.mirror(this.placementData.getMirror());
-//        int currentRot = output.get(Properties.ROTATION);
-//        Direction newDir = this.placementData.getRotation().rotate(
-//                RotationPropertyHelper.toDirection(currentRot).get());
-
-//        output.with(Properties.ROTATION,
-//                this.placementData.getRotation().rotate(
-//                        Integer.valueOf(output.get(Properties.ROTATION).toString())
-//                ));
         output = output.rotate(this.placementData.getRotation());
 
-        returnedBlock = new StructureTemplate.StructureBlockInfo(block.pos,
-                output, block.nbt);
-        return returnedBlock;
+        return new StructureTemplate.StructureBlockInfo(block.pos, output, block.nbt);
     }
 
     public void randomPlacement() {
         BlockMirror[] mirrorTypes = BlockMirror.values();
         this.placementData.setMirror(Util.getRandom(mirrorTypes, this.world.getRandom()));
-        this.placementData.setRotation(BlockRotation.CLOCKWISE_90);
+        this.placementData.setRotation(BlockRotation.random(this.world.getRandom()));
     }
 
-    public void createFoundation() {
+    public boolean createFoundation() {
         List<StructureTemplate.StructureBlockInfo> foundationBlocks = new ArrayList<>();
         BlockState adaptedState = foundationBlockMap.get(this.structType).getDefaultState();
 
+        int foundationLimit = this.template.getSize().getX() * this.template.getSize().getX() * MAX_LAYERS;
+        int dY = 0;
         for(StructureTemplate.StructureBlockInfo block : blockInfoList) {
             if(block.pos.getY() == 0) {
                 BlockPos underBlock = block.pos.down();
@@ -128,11 +117,28 @@ public class StructureStore {
                         StructureTemplate.transform(this.placementData, underBlock).add(this.offset))
                         .getMaterial().isReplaceable() && underBlock.getY() >= world.getBottomY()) {
                     foundationBlocks.add(new StructureTemplate.StructureBlockInfo(underBlock, adaptedState, null) );
+
+                    dY = Math.min(dY, underBlock.getY());
                     underBlock = underBlock.down();
+
+                    if(foundationBlocks.size() > foundationLimit) {
+                        //Placing too many blocks as a foundation, probably a bad spot to build
+                        return false;
+                    }
                 }
             }
         }
+        
+        
+        
         this.blockInfoList.addAll(foundationBlocks);
+        //update bounding box to include y values
+        BlockBox b = this.placementData.getBoundingBox();
+        this.placementData.setBoundingBox(new BlockBox(
+                b.getMinX(), b.getMinY() + dY, b.getMinZ(),
+                b.getMaxX(), b.getMaxY(), b.getMaxZ()));
+
         this.queue = new BuildQueue(this.blockInfoList, this.placementData.getBoundingBox());
+        return true;
     }
 }
