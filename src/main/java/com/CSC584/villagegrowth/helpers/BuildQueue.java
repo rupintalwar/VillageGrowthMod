@@ -12,7 +12,6 @@ public class BuildQueue {
     PriorityQueue<PriorityBlock> pending;
     List<StructureBlockInfo> allBlocks;
     BlockBox bounds;
-    int attempts;
 
     public BuildQueue(List<StructureBlockInfo> allBlocks, BlockBox bounds) {
         this.finished = false;
@@ -34,7 +33,6 @@ public class BuildQueue {
         if (this.pending.isEmpty()) {
             this.finished = true;
         }
-        this.setAttempts(0);
         return this.pending.poll();
     }
 
@@ -52,10 +50,6 @@ public class BuildQueue {
         return  block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) +
                 block.pos.getX() * bounds.getBlockCountZ() +
                 block.pos.getZ();
-    }
-
-    public void setBounds(BlockBox bounds) {
-        this.bounds = bounds;
     }
 
     public static class PriorityBlock {
@@ -86,19 +80,8 @@ public class BuildQueue {
 
         @Override
         public int compare(PriorityBlock o1, PriorityBlock o2) {
-            return Integer.compare(o1.priority, o2.priority);
+            return Integer.compare(o1.getPriority(), o2.getPriority());
         }
     }
 
-
-    public int getAttempts() {
-        return attempts;
-    }
-
-    public void setAttempts(int attempts) {
-        this.attempts = attempts;
-    }
-    public void incrementAttempt() {
-        this.attempts++;
-    }
 }

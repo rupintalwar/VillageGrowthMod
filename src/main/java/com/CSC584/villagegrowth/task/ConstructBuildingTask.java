@@ -7,6 +7,7 @@ import com.CSC584.villagegrowth.helpers.StructureStore;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.brain.BlockPosLookTarget;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
@@ -14,7 +15,8 @@ import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
 import net.minecraft.entity.ai.pathing.Path;
-import net.minecraft.entity.passive.ParrotEntity;
+import net.minecraft.entity.mob.PathAwareEntity;
+import net.minecraft.entity.passive.BeeEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplate;
@@ -96,10 +98,14 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                 //Timeout the build after too long. Villager may get stuck otherwise. Start cleanup
                 if (structureStore.queue == null ||
                         structureStore.queue.getBlock() == null ||
-                        structureStore.queue.getAttempts() > MAX_ATTEMPTS) {
+                        structureStore.getAttempts() > MAX_ATTEMPTS) {
+                    if(structureStore.queue != null) {
+                        structureStore.setAttempts(0);
+                    }
                     structureStore.queue = null;
                     cleanupMode = true;
                 }
+                structureStore.incrementAttempt();
 
                 if(cleanupMode) {
                     if(!structureStore.scaffoldStack.isEmpty()) {
@@ -110,8 +116,19 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                                 //nothing left to clean, exit
                                 return;
                             }
-
                             pos = structureStore.scaffoldStack.peek();
+                        }
+
+                        if (structureStore.getAttempts() > MAX_ATTEMPTS) {
+                            //villager can't clean up, let blocks stay
+                            while (!structureStore.scaffoldStack.isEmpty()) {
+                                pos = structureStore.scaffoldStack.pop();
+                                if (serverWorld.getBlockState(pos).isOf(ModBlocks.MARKED_SCAFFOLD)) {
+                                    //nothing left to clean, exit
+                                    serverWorld.setBlockState(pos, Blocks.SCAFFOLDING.getDefaultState());
+                                }
+                            }
+                            return;
                         }
 
                         setWalkTarget(villagerEntity, pos);
@@ -122,23 +139,24 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                         }
                     }
                 } else {
-                    structureStore.queue.incrementAttempt();
-
                     //Position of target block
                     BlockPos pos = StructureTemplate.transform(
                             structureStore.placementData,
                             structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset);
 
-                    VillageGrowthMod.LOGGER.info(
-                            "Target Pos: " + pos.toString().substring(8) +
-                                    " Attempt: " + structureStore.queue.getAttempts()
-                    );
+//                    VillageGrowthMod.LOGGER.info(
+//                            "Target Pos: " + pos.toString().substring(8) +
+//                                    " Attempt: " + structureStore.getAttempts()
+//                    );
 
 
                     //Check whether to attempt placing
                     if (pos.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
                         BlockState blockState = serverWorld.getBlockState(pos);
+
                         BuildQueue.PriorityBlock target = structureStore.queue.removeBlock();
+                        structureStore.setAttempts(0);
+
                         if ((blockState.isReplaceable() || blockState.isOf(ModBlocks.MARKED_SCAFFOLD)) &&
                                 (hasSolidNeighbor(serverWorld, pos) || target.getQueueCount() > structureStore.template.getSize().getY())) {
                             //place the block
@@ -161,7 +179,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                     }
 
                     //attempt to build a path
-                    if(structureStore.queue.getAttempts() > MAX_ATTEMPTS / 2) {
+                    if(structureStore.getAttempts() > MAX_ATTEMPTS / 2) {
                         BlockPos pos2 = createTempPath(serverWorld, pos, villagerEntity);
 
                         if(pos != pos2) {
@@ -205,15 +223,20 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
 
     private BlockPos createTempPath(ServerWorld world, BlockPos pos, VillagerEntity villagerEntity) {
-        ParrotEntity flyingVillager = new ParrotEntity(EntityType.PARROT, world);//FlyingVillagerEntity(EntityType.VILLAGER, world);
+        PathAwareEntity flyingVillager = new BeeEntity(EntityType.BEE, world);
         flyingVillager.setPosition(villagerEntity.getPos());
         Path path =  flyingVillager.getNavigation().findPathTo(pos, 1);
-        while(!path.isFinished()) {
+        BlockPos prev = pos;
+        while(path != null && !path.isFinished()) {
             BlockPos pos2 = path.getCurrentNode().getBlockPos();
-            if(world.getBlockState(pos2).isAir()) {
+            if(prev == pos2.down()) {
+                break;
+            }
+            if(world.getBlockState(pos2.down()).isAir()) {
                 flyingVillager.discard();
                 return pos2;
             }
+            prev = pos2;
             path.next();
         }
         flyingVillager.discard();

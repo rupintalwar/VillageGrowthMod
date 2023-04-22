@@ -40,6 +40,8 @@ public class StructureStore {
 
     public Stack<BlockPos> scaffoldStack;
 
+    private int attempts;
+
     public StructureStore(ServerWorld world, Identifier struct_id, String structType, boolean randomPlacement) {
         StructureTemplateManager structureTemplateManager = world.getStructureTemplateManager();
 
@@ -140,5 +142,16 @@ public class StructureStore {
 
         this.queue = new BuildQueue(this.blockInfoList, this.placementData.getBoundingBox());
         return true;
+    }
+
+    public int getAttempts() {
+        return attempts;
+    }
+
+    public void setAttempts(int attempts) {
+        this.attempts = attempts;
+    }
+    public void incrementAttempt() {
+        this.attempts++;
     }
 }
