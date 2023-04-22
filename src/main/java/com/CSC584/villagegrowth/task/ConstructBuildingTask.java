@@ -30,7 +30,7 @@ import java.util.Optional;
 public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
     private static final int BUILD_RANGE = 7;
-    private static final int MAX_ATTEMPTS = 100;
+    private static final int MAX_ATTEMPTS = 300;
     private static final long DELAY = 5;
     private long nextResponseTime;
 

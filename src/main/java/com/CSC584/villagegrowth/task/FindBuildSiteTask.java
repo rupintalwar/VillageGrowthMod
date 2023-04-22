@@ -28,13 +28,13 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
     }
 
     protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
-        VillageGrowthMod.LOGGER.info("Checking Find");
+        //VillageGrowthMod.LOGGER.info("Checking Find");
         updateHouseStructures(world);
         return !entity.getBrain().hasMemoryModule(ModVillagers.STRUCTURE_BUILD_INFO) && !houseStructureMap.isEmpty();
     }
 
     protected void run(ServerWorld world, VillagerEntity entity, long time) {
-        VillageGrowthMod.LOGGER.info("Find Build Site:run123!");
+        //VillageGrowthMod.LOGGER.info("Find Build Site:run!");
 
         String villageType = entity.getVillagerData().getType().toString();
         ArrayList<Identifier> houseStructureList = houseStructureMap.get(villageType);
@@ -48,14 +48,14 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
 
     @Override
     protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
-        VillageGrowthMod.LOGGER.info("Find Build Site:should keep running?" + entity.getBrain().hasMemoryModule(ModVillagers.STRUCTURE_BUILD_INFO));
+        //VillageGrowthMod.LOGGER.info("Find Build Site:should keep running?" + entity.getBrain().hasMemoryModule(ModVillagers.STRUCTURE_BUILD_INFO));
         return entity.getBrain().hasMemoryModule(ModVillagers.STRUCTURE_BUILD_INFO) && !this.foundSpot;
     }
 
     @Override
     protected void keepRunning(ServerWorld world, VillagerEntity entity, long time) {
         //Try to find an empty spot for the structure
-        VillageGrowthMod.LOGGER.info("Find Build Site:keep running!");
+        //VillageGrowthMod.LOGGER.info("Find Build Site:keep running!");
 
         //Get the center of all villagers within search radius
         Box box = entity.getBoundingBox().expand(SEARCH_RADIUS, SEARCH_RADIUS, SEARCH_RADIUS);
