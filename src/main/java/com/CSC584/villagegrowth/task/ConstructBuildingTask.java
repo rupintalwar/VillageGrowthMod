@@ -226,15 +226,16 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         PathAwareEntity flyingVillager = new BeeEntity(EntityType.BEE, world);
         flyingVillager.setPosition(villagerEntity.getPos());
         Path path =  flyingVillager.getNavigation().findPathTo(pos, 1);
-        BlockPos prev = pos;
+        BlockPos prev = villagerEntity.getBlockPos();
         while(path != null && !path.isFinished()) {
             BlockPos pos2 = path.getCurrentNode().getBlockPos();
             if(prev == pos2.down()) {
-                break;
-            }
-            if(world.getBlockState(pos2.down()).isAir()) {
                 flyingVillager.discard();
-                return pos2;
+                return prev;
+            }
+            if(world.getBlockState(pos2.down()).isReplaceable()) {
+                flyingVillager.discard();
+                return pos2.down();
             }
             prev = pos2;
             path.next();

@@ -37,7 +37,7 @@ public class BuildQueue {
     }
 
     public void requeueBlock(PriorityBlock priorityBlock) {
-        priorityBlock.priority += 2 * (bounds.getBlockCountX() + bounds.getBlockCountZ());
+        priorityBlock.priority += 2 * (bounds.getBlockCountX() * bounds.getBlockCountZ());
         priorityBlock.queueCount++;
         this.pending.add(priorityBlock);
     }
@@ -47,7 +47,7 @@ public class BuildQueue {
     }
 
     public int initialPriority(StructureBlockInfo block) {
-        return  block.pos.getY() * (bounds.getBlockCountX() + bounds.getBlockCountZ()) +
+        return  block.pos.getY() * ((bounds.getBlockCountX() -1) * bounds.getBlockCountZ()) +
                 block.pos.getX() * bounds.getBlockCountZ() +
                 block.pos.getZ();
     }

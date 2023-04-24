@@ -133,6 +133,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
         structureStore.placementData.setBoundingBox(structureBox);
 
         this.foundSpot = world.isSpaceEmpty(Box.from(structureBox));
+        this.foundSpot = !world.containsFluid(Box.from(structureBox)) && this.foundSpot; //stop building in water
 
         //Check if the spot interferes with another nearby villager
         for (VillagerEntity villager : villagerNeighbors) {
