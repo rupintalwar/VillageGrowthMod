@@ -4,6 +4,7 @@ import com.CSC584.villagegrowth.VillageGrowthMod;
 import com.CSC584.villagegrowth.helpers.StructureStore;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -21,6 +22,10 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
     private final Map<String, ArrayList<Identifier>> houseStructureMap = new HashMap<>();
     private final Set<Identifier> houseStructureSet = new HashSet<>();
 
+    private final Map<String, String> villagerTypeMap = new HashMap<>(ImmutableMap.of(
+            "snow", "snowy"
+            ));
+
     private boolean foundSpot;
 
     public FindBuildSiteTask() {
@@ -37,12 +42,24 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
         //VillageGrowthMod.LOGGER.info("Find Build Site:run!");
 
         String villageType = entity.getVillagerData().getType().toString();
+        villageType = villagerTypeMap.get(villageType);
+
+        //Some villagers don't have matching village type names
+        if(houseStructureMap.get(villageType) == null ) {
+            villageType = villagerTypeMap.get(villageType); //check map for name match
+            if(villageType == null) {
+                villageType = "plains"; //default to plains structures if it doesn't exist
+            }
+        }
+
         ArrayList<Identifier> houseStructureList = houseStructureMap.get(villageType);
-        Identifier selectedStruct = houseStructureList.get(new Random().nextInt(houseStructureList.size()));
+        if(houseStructureList != null) {
+            Identifier selectedStruct = houseStructureList.get(new Random().nextInt(houseStructureList.size()));
 
-        StructureStore structureStore = new StructureStore(world, selectedStruct, villageType, true);
+            StructureStore structureStore = new StructureStore(world, selectedStruct, villageType, true);
 
-        entity.getBrain().remember(ModVillagers.STRUCTURE_BUILD_INFO, structureStore);
+            entity.getBrain().remember(ModVillagers.STRUCTURE_BUILD_INFO, structureStore);
+        }
         this.foundSpot = false;
     }
 
