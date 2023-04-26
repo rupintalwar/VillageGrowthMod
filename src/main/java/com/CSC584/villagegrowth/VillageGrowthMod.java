@@ -1,5 +1,6 @@
 package com.CSC584.villagegrowth;
 
+import com.CSC584.villagegrowth.blocks.ModBlocks;
 import com.CSC584.villagegrowth.villager.ModVillagers;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
@@ -12,7 +13,7 @@ public class VillageGrowthMod implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		LOGGER.info("Initializing Mod: " + MOD_ID);
-
 		ModVillagers.registerVillagers();
+		ModBlocks.registerBlocks();
 	}
 }

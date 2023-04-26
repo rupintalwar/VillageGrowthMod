@@ -1,8 +1,8 @@
 package com.CSC584.villagegrowth.mixin;
 
+import com.CSC584.villagegrowth.task.ConstructBuildingTask;
 import com.CSC584.villagegrowth.task.FindBuildSiteTask;
-import com.CSC584.villagegrowth.task.MasonVillagerTask;
-import com.CSC584.villagegrowth.task.TillLandTask;
+import com.CSC584.villagegrowth.task.MasonWorkTask;
 import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.entity.EntityType;
@@ -18,8 +18,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.CSC584.villagegrowth.villager.ModVillagers.BUILD_SITE;
-
 @Mixin(VillagerTaskListProvider.class)
 public class VillagerTaskListProviderMixin {
     @Inject(method = "createWorkTasks", at = @At("HEAD"), cancellable = true)
@@ -30,23 +28,16 @@ public class VillagerTaskListProviderMixin {
 
         boolean overrideTasks = true;
 
-        if(profession == VillagerProfession.FARMER) {
+        if(profession == VillagerProfession.MASON) {
             randomTasks.addAll(ImmutableList.of(
-                    Pair.of(new FarmerWorkTask(), 7),
-                    Pair.of(new FarmerVillagerTask(), 2),
-                    Pair.of(new BoneMealTask(), 4),
-                    Pair.of(new TillLandTask(), 3)
+                    Pair.of(new ConstructBuildingTask(), 5),
+                    Pair.of(new MasonWorkTask(), 7),
+                    Pair.of(new FindBuildSiteTask(), 2)
             ));
 
-        } else if(profession == VillagerProfession.MASON) {
-            randomTasks.addAll(ImmutableList.of(
-                    Pair.of(new MasonVillagerTask(), 7),
-                    Pair.of(new FindBuildSiteTask(), 4)
-            ));
-
-            tasks.addAll(ImmutableList.of(
-                    Pair.of(3, VillagerWalkTowardsTask.create(BUILD_SITE, speed, 9, 100, 1200))
-            ));
+            //tasks.addAll(ImmutableList.of(
+            //        Pair.of(3, VillagerWalkTowardsTask.create(BUILD_SITE, speed, 9, 100, 1200))
+            //));
 
         } else {
             overrideTasks = false;
