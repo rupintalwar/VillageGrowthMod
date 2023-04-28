@@ -4,9 +4,9 @@
   "version": "${version}",
 
   "name": "Village Growth Mod",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "description": "Where did villages come from? Gives villagers the ability to build buildings.",
   "authors": [
-    "Me!"
+    "Rupin Talwar", "Joshua Myers"
   ],
   "contact": {
     "homepage": "https://fabricmc.net/",
@@ -19,7 +19,7 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.CSC584.villagegrowth.VillageGrowthMod"
+      "villagegrowth.VillageGrowthMod"
     ]
   },
   "mixins": [
