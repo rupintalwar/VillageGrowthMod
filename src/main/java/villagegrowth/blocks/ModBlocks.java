@@ -1,14 +1,12 @@
 package villagegrowth.blocks;
 
-import eu.pb4.polymer.core.api.block.SimplePolymerBlock;
-import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import villagegrowth.VillageGrowthMod;
+import net.fabricmc.fabric.api.registry.LandPathNodeTypesRegistry;
 import net.minecraft.block.Block;
+import net.minecraft.entity.ai.pathing.PathNodeType;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
+import villagegrowth.VillageGrowthMod;
 
 public class ModBlocks {
 
@@ -18,14 +16,11 @@ public class ModBlocks {
                     new Identifier(VillageGrowthMod.MOD_ID, "marked_scaffold"),
                     MarkedScaffold.MARKED_SCAFFOLD
             );
-    public static final Item MARKED_SCAFFOLD_ITEM =
-            Registry.register(
-                    Registries.ITEM,
-                    new Identifier(VillageGrowthMod.MOD_ID, "marked_scaffold"),
-                    new BlockItem(MarkedScaffold.MARKED_SCAFFOLD, new FabricItemSettings())
-            );
+
+
     public static void registerBlocks() {
         VillageGrowthMod.LOGGER.debug("Registering blocks for " + VillageGrowthMod.MOD_ID);
 
+        LandPathNodeTypesRegistry.register(ModBlocks.MARKED_SCAFFOLD, PathNodeType.WALKABLE, PathNodeType.WALKABLE);
     }
 }

@@ -15,7 +15,7 @@ import net.minecraft.util.Identifier;
 import java.util.Optional;
 
 public class ModVillagers {
-    public static final boolean MARK_NEXT_BLOCK = false;
+    public static final boolean MARK_NEXT_BLOCK = true;
     public static final MemoryModuleType<StructureStore> STRUCTURE_BUILD_INFO =
         Registry.register(
                 Registries.MEMORY_MODULE_TYPE,

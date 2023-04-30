@@ -44,6 +44,6 @@ public class FlyingVillagerEntity extends VillagerEntity {
 
     @Override
     public float getPathfindingFavor(BlockPos pos, WorldView world) {
-        return world.getBlockState(pos.down()).isAir() ? 0.0F : 10.0F;
+        return world.getBlockState(pos.down()).isAir() ? 0.0F : 3.0F;
     }
 }

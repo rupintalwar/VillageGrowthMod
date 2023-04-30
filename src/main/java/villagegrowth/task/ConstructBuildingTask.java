@@ -14,13 +14,10 @@ import net.minecraft.entity.ai.pathing.NavigationType;
 import net.minecraft.entity.ai.pathing.Path;
 import net.minecraft.entity.mob.PathAwareEntity;
 import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.scoreboard.ScoreboardCriterion;
-import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.village.VillagerProfession;
 import net.minecraft.world.GameRules;
 import net.minecraft.world.event.GameEvent;
@@ -39,6 +36,10 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
     public static final int BUILD_RANGE = 7;
     private static final int MAX_ATTEMPTS = 300;
     private static final long DELAY = 5;
+    private static final long ALLOWED_WAIT_TIME = 20;
+    private static final long WORKING_THRESHOLD = 40;
+
+    private long delay_counter = 0;
     private long nextResponseTime;
 
     private Path storedPath;
@@ -57,7 +58,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         if (!serverWorld.getGameRules().getBoolean(GameRules.DO_MOB_GRIEFING)) {
             return false;
         }
-        if (villagerEntity.getVillagerData().getProfession() != VillagerProfession.MASON) {
+        if (!villagerEntity.getVillagerData().getProfession().equals(VillagerProfession.MASON)) {
             return false;
         }
 
@@ -119,7 +120,10 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                     structureStore.queue = null;
                     cleanupMode = true;
                 }
-                structureStore.incrementAttempt();
+
+                if(isAttemptingToBuild(l)) {
+                    structureStore.incrementAttempt();
+                }
                 if(ModVillagers.MARK_NEXT_BLOCK) {
                     structureStore.marker.setCustomName(Text.of(villagerEntity.getCustomName().getString() + ": " + (MAX_ATTEMPTS - structureStore.getAttempts())));
                 }
@@ -202,7 +206,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                     //attempt to build a path
                     if(structureStore.getAttempts() > MAX_ATTEMPTS / 2) {
                         BlockPos pos2 = createTempPath(serverWorld, pos, villagerEntity);
-                        if(pos2.getY() > villagerEntity.getBlockPos().getY() ||
+                        if(//pos2.getY() > villagerEntity.getBlockPos().getY() ||
                                 !serverWorld.getBlockState(pos2.up()).isAir() ||
                                 !serverWorld.getBlockState(pos2.up().up()).isAir() ||
                                 (!serverWorld.getBlockState(villagerEntity.getBlockPos().up().up()).isAir()
@@ -210,7 +214,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                             //don't block yourself with scaffold
                             pos2 = pos;
                         }
-                        if(pos != pos2) {
+                        if(!pos.equals(pos2)) {
                             //there exists a block that can be placed
                             if (pos2.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
                                 //place the block and add it to the stack
@@ -235,6 +239,16 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                 new BlockPosLookTarget(pos));
     }
 
+    private boolean isAttemptingToBuild(long time) {
+        if(time - this.nextResponseTime <= WORKING_THRESHOLD || this.delay_counter < ALLOWED_WAIT_TIME) {
+            delay_counter++;
+            return true;
+        } else {
+            this.delay_counter = 0;
+            return false;
+        }
+    }
+
     private boolean hasSolidNeighbor(ServerWorld world, BlockPos pos) {
         return  world.getBlockState(pos.up()).getMaterial().isSolid() ||
                 world.getBlockState(pos.down()).getMaterial().isSolid() ||
@@ -255,12 +269,8 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         PathAwareEntity flyingVillager = new FlyingVillagerEntity(EntityType.VILLAGER, world);
         flyingVillager.setPosition(villagerEntity.getPos());
 
-        if(villagerEntity.getPos().isInRange(new Vec3d(117, 85, 476), 8)){
-            int i = 0;
-        }
-
         Path path = storedPath;
-        if(shouldRecalculatePath(world, flyingVillager)) {
+        if(shouldRecalculatePath(world)) {
             path = ((EntityNavigationInterfaceMixin) flyingVillager.getNavigation())
                     .invokeFindPathTo(ImmutableSet.of(pos),
                             BUILD_RANGE,
@@ -269,16 +279,19 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
             this.storedPath = path;
         }
 
-        Path path2 = ((EntityNavigationInterfaceMixin) villagerEntity.getNavigation())
-                .invokeFindPathTo(ImmutableSet.of(pos),
-                    BUILD_RANGE,
-                    false,
-                    1);
+        Path path2 = villagerEntity.getNavigation().getCurrentPath();
+        if(path2 == null || !path2.getTarget().equals(pos)) {
+            path2 = ((EntityNavigationInterfaceMixin) villagerEntity.getNavigation())
+                    .invokeFindPathTo(ImmutableSet.of(pos),
+                            BUILD_RANGE,
+                            false,
+                            1);
+        }
 
         BlockPos prev = villagerEntity.getBlockPos();
         while((path2 == null || !path2.reachesTarget()) && path != null && !path.isFinished()) {
             BlockPos pos2 = path.getCurrentNode().getBlockPos();
-            if(prev == pos2.down()) {
+            if(prev.equals(pos2.down())) {
                 flyingVillager.discard();
                 return prev;
             }
@@ -293,7 +306,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
         return pos;
     }
 
-    private boolean shouldRecalculatePath(ServerWorld world, PathAwareEntity flyingVillager) {
+    private boolean shouldRecalculatePath(ServerWorld world) {
         if(this.storedPath == null || !this.storedPath.reachesTarget()) {
             return true;
         }
@@ -303,7 +316,8 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
 
             BlockPos pos = this.storedPath.getNode(i).getBlockPos();
 
-            if(!world.getBlockState(pos.up()).canPathfindThrough(world, pos.up(), NavigationType.LAND)) {
+            if(!world.getBlockState(pos).canPathfindThrough(world, pos, NavigationType.LAND) ||
+                    !world.getBlockState(pos.up()).canPathfindThrough(world, pos.up(), NavigationType.LAND)) {
                 return true;
             }
 
