@@ -14,6 +14,7 @@ public class FlyingVillagerEntity extends VillagerEntity {
     public FlyingVillagerEntity(EntityType<? extends VillagerEntity> entityType, World world) {
         super(entityType, world);
         this.setStepHeight(1.125f);
+        this.navigation = createNavigation(world);
     }
 
     @Override

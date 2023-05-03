@@ -36,10 +36,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
     public static final int BUILD_RANGE = 7;
     private static final int MAX_ATTEMPTS = 300;
     private static final long DELAY = 5;
-    private static final long ALLOWED_WAIT_TIME = 20;
-    private static final long WORKING_THRESHOLD = 40;
 
-    private long delay_counter = 0;
     private long nextResponseTime;
 
     private Path storedPath;
@@ -121,7 +118,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                     cleanupMode = true;
                 }
 
-                if(isAttemptingToBuild(l)) {
+                if(isAttemptingToBuild(villagerEntity, structureStore)) {
                     structureStore.incrementAttempt();
                 }
                 if(ModVillagers.MARK_NEXT_BLOCK) {
@@ -223,7 +220,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                                 serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, pos2, GameEvent.Emitter.of(villagerEntity, target));
                                 structureStore.scaffoldStack.push(pos2);
                             }
-                            //setWalkTarget(villagerEntity, pos2);
+                            setWalkTarget(villagerEntity, this.storedPath.getCurrentNodePos());
                         }
                     }
                 }
@@ -231,22 +228,30 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
             }
         }
     }
+
+    private boolean isAttemptingToBuild(VillagerEntity villagerEntity, StructureStore structureStore) {
+        Optional<WalkTarget> optional = villagerEntity.getBrain().getOptionalMemory(MemoryModuleType.WALK_TARGET);
+        if(optional.isPresent()) {
+            BlockPos villagerTarget = optional.get().getLookTarget().getBlockPos();
+            BlockPos p = structureStore.queue != null &&
+                    structureStore.queue.getBlock() != null ?
+                    StructureTemplate.transform(
+                            structureStore.placementData,
+                            structureStore.queue.getBlock().getBlock().pos).add(structureStore.offset)
+                    : !structureStore.scaffoldStack.isEmpty() ? structureStore.scaffoldStack.peek() : null;
+
+            return p != null && p.equals(villagerTarget);
+        } else {
+            return true;
+        }
+    }
+
     private void setWalkTarget(VillagerEntity villagerEntity, BlockPos pos) {
         villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET,
                 new WalkTarget(new BlockPosLookTarget(pos), 0.5f, 3));
 
         villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET,
                 new BlockPosLookTarget(pos));
-    }
-
-    private boolean isAttemptingToBuild(long time) {
-        if(time - this.nextResponseTime <= WORKING_THRESHOLD || this.delay_counter < ALLOWED_WAIT_TIME) {
-            delay_counter++;
-            return true;
-        } else {
-            this.delay_counter = 0;
-            return false;
-        }
     }
 
     private boolean hasSolidNeighbor(ServerWorld world, BlockPos pos) {

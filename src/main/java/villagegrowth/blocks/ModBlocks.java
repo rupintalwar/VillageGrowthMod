@@ -18,9 +18,10 @@ public class ModBlocks {
             );
 
 
+
     public static void registerBlocks() {
         VillageGrowthMod.LOGGER.debug("Registering blocks for " + VillageGrowthMod.MOD_ID);
 
-        LandPathNodeTypesRegistry.register(ModBlocks.MARKED_SCAFFOLD, PathNodeType.WALKABLE, PathNodeType.WALKABLE);
+        LandPathNodeTypesRegistry.register(ModBlocks.MARKED_SCAFFOLD, PathNodeType.TRAPDOOR, null);
     }
 }
