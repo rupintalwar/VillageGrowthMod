@@ -3,7 +3,6 @@ package villagegrowth.task;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.brain.BlockPosLookTarget;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
@@ -138,12 +137,12 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                         }
 
                         if (structureStore.getAttempts() > MAX_ATTEMPTS) {
-                            //villager can't clean up, let blocks stay
+                            //villager can't clean up, replace blocks
                             while (!structureStore.scaffoldStack.isEmpty()) {
                                 pos = structureStore.scaffoldStack.pop();
                                 if (serverWorld.getBlockState(pos).isOf(ModBlocks.MARKED_SCAFFOLD)) {
-                                    //nothing left to clean, exit
-                                    serverWorld.setBlockState(pos, Blocks.SCAFFOLDING.getDefaultState());
+                                    //replace with specified type
+                                    serverWorld.setBlockState(pos, ModBlocks.replaceType);
                                 }
                             }
                             return;
@@ -213,7 +212,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                         }
                         if(!pos.equals(pos2)) {
                             //there exists a block that can be placed
-                            if (pos2.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE)) {
+                            if (pos2.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE) && serverWorld.getBlockState(pos2).isReplaceable()) {
                                 //place the block and add it to the stack
                                 BlockState target =  ModBlocks.MARKED_SCAFFOLD.getDefaultState();
                                 serverWorld.setBlockState(pos2,target);
