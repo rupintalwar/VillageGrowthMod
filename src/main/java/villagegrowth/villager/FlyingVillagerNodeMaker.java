@@ -2,7 +2,9 @@ package villagegrowth.villager;
 
 import net.minecraft.entity.ai.pathing.BirdPathNodeMaker;
 import net.minecraft.entity.ai.pathing.PathNode;
+import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
+import villagegrowth.blocks.ModBlocks;
 
 public class FlyingVillagerNodeMaker extends BirdPathNodeMaker {
 
@@ -145,7 +147,17 @@ public class FlyingVillagerNodeMaker extends BirdPathNodeMaker {
             successors[i++] = pathNode26;
         }
 
+        for(PathNode p : successors) {
+            if(p != null && this.cachedWorld.getBlockState(p.getBlockPos().down()).isAir()) {
+                p.penalty += 10;
+            }
+        }
+
         return i;
+    }
+
+    public boolean isScaffold(BlockPos pos) {
+        return ModBlocks.scaffoldSet.contains(this.cachedWorld.getBlockState(pos).getBlock());
     }
 
     private boolean isPassable(@Nullable PathNode node) {

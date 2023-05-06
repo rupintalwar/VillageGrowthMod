@@ -3,6 +3,7 @@ package villagegrowth.task;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.brain.BlockPosLookTarget;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
@@ -70,6 +71,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                 //nothing left to build or clean up, forget the memory
                 if(ModVillagers.MARK_NEXT_BLOCK) {
                     structureStore.marker.discard();
+                    structureStore.pathmarker.forEach(Entity::discard);
                 }
                 villagerEntity.getBrain().forget(ModVillagers.STRUCTURE_BUILD_INFO);
 
@@ -202,6 +204,14 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                     //attempt to build a path
                     if(structureStore.getAttempts() > MAX_ATTEMPTS / 2) {
                         BlockPos pos2 = createTempPath(serverWorld, pos, villagerEntity);
+
+                        if(ModVillagers.MARK_NEXT_BLOCK) {
+                            for(int i = 0; i < this.storedPath.getLength(); i++) {
+                                structureStore.pathmarker.get(i).setPosition(this.storedPath.getNode(i).getBlockPos().toCenterPos());
+                            }
+                        }
+
+                        /*
                         if(//pos2.getY() > villagerEntity.getBlockPos().getY() ||
                                 !serverWorld.getBlockState(pos2.up()).isAir() ||
                                 !serverWorld.getBlockState(pos2.up().up()).isAir() ||
@@ -209,7 +219,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
                                         && pos2.getY() ==  villagerEntity.getPos().getY())) {
                             //don't block yourself with scaffold
                             pos2 = pos;
-                        }
+                        }*/
                         if(!pos.equals(pos2)) {
                             //there exists a block that can be placed
                             if (pos2.isWithinDistance(villagerEntity.getPos(), BUILD_RANGE) && serverWorld.getBlockState(pos2).isReplaceable()) {
@@ -266,6 +276,7 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
     protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
         villagerEntity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
         villagerEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
+
     }
 
 
@@ -311,7 +322,8 @@ public class ConstructBuildingTask extends MultiTickTask<VillagerEntity> {
     }
 
     private boolean shouldRecalculatePath(ServerWorld world) {
-        if(this.storedPath == null || !this.storedPath.reachesTarget()) {
+        if(this.storedPath == null || this.storedPath.isFinished() || (!this.storedPath.reachesTarget() &&
+                this.storedPath.getCurrentNode().equals(this.storedPath.getEnd()))) {
             return true;
         }
 

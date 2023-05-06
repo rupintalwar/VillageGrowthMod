@@ -1,19 +1,33 @@
 package villagegrowth.task;
 
-import villagegrowth.helpers.StructureStore;
-import villagegrowth.villager.ModVillagers;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.ai.brain.task.MultiTickTask;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplateManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.*;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import villagegrowth.helpers.StructureStore;
+import villagegrowth.villager.ModVillagers;
 
 import java.util.*;
 
 public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
+    public static final HashSet VALID_BLOCKS = new HashSet<>(ImmutableSet.of(
+            Blocks.SAND,
+            Blocks.RED_SAND,
+            Blocks.DIRT,
+            Blocks.GRASS_BLOCK,
+            Blocks.GRAVEL,
+            Blocks.STONE,
+            Blocks.ICE,
+            Blocks.END_STONE,
+            Blocks.NETHERRACK));
     private static final int SEARCH_RADIUS = 50;
     private static final double PROJECTION_OFFSET = 3;
 
@@ -103,7 +117,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
         for(VillagerEntity villager : list) {
             projectDist += villager.getPos().squaredDistanceTo(groupCenter);
         }
-        projectDist = Math.sqrt(projectDist / (list.size() + 1)) + PROJECTION_OFFSET;
+        projectDist = 2 * Math.sqrt(projectDist / (list.size() + 1)) + PROJECTION_OFFSET;
 
 
         //project out from the center to a random direction
@@ -153,13 +167,14 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
                            int y,
                            List<VillagerEntity> villagerNeighbors,
                            VillagerEntity entity) {
-        structureStore.offset = new BlockPos(structureCorner.getX(), y, structureCorner.getZ());
-        BlockBox structureBox = structureStore.template.calculateBoundingBox(
-                structureStore.placementData, structureStore.offset);
-        structureStore.placementData.setBoundingBox(structureBox);
+        structureStore.setOffset(new BlockPos(structureCorner.getX(), y, structureCorner.getZ()));
 
-        this.foundSpot = world.isSpaceEmpty(Box.from(structureBox));
-        this.foundSpot = !world.containsFluid(Box.from(structureBox)) && this.foundSpot; //stop building in water
+        this.foundSpot = world.isSpaceEmpty(Box.from(structureStore.placementData.getBoundingBox()));
+        this.foundSpot = !world.containsFluid(Box.from(structureStore.placementData.getBoundingBox())) && this.foundSpot; //stop building in water
+
+        if(!this.foundSpot) {
+            return;
+        }
 
         //Check if the spot interferes with another nearby villager
         for (VillagerEntity villager : villagerNeighbors) {
@@ -170,7 +185,7 @@ public class FindBuildSiteTask extends MultiTickTask<VillagerEntity> {
                 if(store.queue != null &&
                         store.queue.getBlock() != null &&
                         store.placementData.getBoundingBox() != null &&
-                        store.placementData.getBoundingBox().intersects(structureBox)) {
+                        store.placementData.getBoundingBox().intersects(structureStore.placementData.getBoundingBox())) {
                     //Don't build where someone else is
                     this.foundSpot = false;
                     return;

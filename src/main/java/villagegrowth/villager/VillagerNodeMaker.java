@@ -84,6 +84,7 @@ public class VillagerNodeMaker extends LandPathNodeMaker {
         if(pathNode == null && isScaffold) {
             pathNode = this.getNode(pos);
             pathNode.type = PathNodeType.WALKABLE;
+            pathNode.penalty -= PathNodeType.BLOCKED.getDefaultPenalty();
         }
 
         if (this.isValidAdjacentSuccessor(pathNode, node) && (!ensureScaffold || isScaffold)) {
@@ -93,6 +94,7 @@ public class VillagerNodeMaker extends LandPathNodeMaker {
         //revert back for solid block
         if(isScaffold) {
             pathNode.type = PathNodeType.BLOCKED;
+            pathNode.penalty += PathNodeType.BLOCKED.getDefaultPenalty();
         }
         return i;
     }

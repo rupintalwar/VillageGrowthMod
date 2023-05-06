@@ -1,5 +1,7 @@
 package villagegrowth.helpers;
 
+import net.minecraft.text.Text;
+import net.minecraft.util.math.Vec3i;
 import villagegrowth.mixin.StructureTemplateInterfaceMixin;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.block.Block;
@@ -19,6 +21,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
+import villagegrowth.task.FindBuildSiteTask;
 import villagegrowth.villager.ModVillagers;
 
 import java.util.*;
@@ -40,10 +43,14 @@ public class StructureStore {
 
     public StructurePlacementData placementData;
     public BlockPos offset;
+    public int adjustY = 0;
+    public BlockBox actualBoundingBox;
 
     public Stack<BlockPos> scaffoldStack;
 
     public ArmorStandEntity marker;
+
+    public List<ArmorStandEntity> pathmarker = new ArrayList<>();
 
     private int attempts;
 
@@ -64,6 +71,16 @@ public class StructureStore {
                 marker.setNoGravity(true);
                 marker.setGlowing(true);
                 world.spawnEntity(marker);
+
+                for(int i = 0; i < 50; i++) {
+                    ArmorStandEntity pm = EntityType.ARMOR_STAND.create(world);
+                    pm.setNoGravity(true);
+                    pm.setGlowing(true);
+                    pm.setCustomName(Text.of("Path: " + i));
+                    pm.setCustomNameVisible(true);
+                    world.spawnEntity(pm);
+                    pathmarker.add(pm);
+                }
             }
 
             if(randomPlacement) {
@@ -71,6 +88,9 @@ public class StructureStore {
             }
             this.structType = structType;
             this.blockInfoList = extractBlockList();
+            this.actualBoundingBox = BlockBox.create(new Vec3i(0, 0, 0),
+                    template.get().calculateBoundingBox(this.placementData, this.offset).getDimensions().add(0, -adjustY, 0));
+
         }
     }
 
@@ -85,8 +105,10 @@ public class StructureStore {
             list.getAll().stream()
                     .map(this::preprocessBlock)
                     .filter(block -> !block.state.isAir())
+                    .peek(block -> block.pos.add(0,-this.adjustY,0))
                     .forEach(output::add);
         }
+
 
         return output;
     }
@@ -105,6 +127,9 @@ public class StructureStore {
                 // Return air to be filtered afterward
                 output = Blocks.AIR.getDefaultState();
             }
+        }
+        if(block.pos.getY() < adjustY) {
+            adjustY = block.pos.getY();
         }
 
         output = output.mirror(this.placementData.getMirror());
@@ -130,7 +155,7 @@ public class StructureStore {
                 BlockPos underBlock = block.pos.down();
                 while(this.world.getBlockState(
                         StructureTemplate.transform(this.placementData, underBlock).add(this.offset))
-                        .getMaterial().isReplaceable() && underBlock.getY() >= world.getBottomY()) {
+                        .getMaterial().isReplaceable() && underBlock.add(this.offset).getY() >= world.getBottomY()) {
                     foundationBlocks.add(new StructureTemplate.StructureBlockInfo(underBlock, adaptedState, null) );
 
                     dY = Math.min(dY, underBlock.getY());
@@ -140,6 +165,11 @@ public class StructureStore {
                         //Placing too many blocks as a foundation, probably a bad spot to build
                         return false;
                     }
+                }
+                BlockState underblockState = this.world.getBlockState(StructureTemplate.transform(this.placementData, underBlock).add(this.offset));
+                if(!FindBuildSiteTask.VALID_BLOCKS.contains(underblockState.getBlock())) {
+                    //Only build on valid spots
+                    return false;
                 }
             }
         }
@@ -167,5 +197,10 @@ public class StructureStore {
     }
     public void incrementAttempt() {
         this.attempts++;
+    }
+
+    public void setOffset(BlockPos blockPos) {
+        this.offset = blockPos;
+        this.placementData.setBoundingBox(this.actualBoundingBox.offset(this.offset.getX(), this.offset.getY(), this.offset.getZ()));
     }
 }

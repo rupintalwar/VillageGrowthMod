@@ -5,9 +5,7 @@ import net.minecraft.entity.ai.pathing.EntityNavigation;
 import net.minecraft.entity.ai.pathing.MobNavigation;
 import net.minecraft.entity.ai.pathing.PathNodeNavigator;
 import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldView;
 
 public class FlyingVillagerEntity extends VillagerEntity {
 
@@ -41,10 +39,5 @@ public class FlyingVillagerEntity extends VillagerEntity {
         mobNavigation.setCanEnterOpenDoors(true);
 
         return mobNavigation;
-    }
-
-    @Override
-    public float getPathfindingFavor(BlockPos pos, WorldView world) {
-        return world.getBlockState(pos.down()).isAir() ? 0.0F : 100.0F;
     }
 }
